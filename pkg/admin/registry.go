@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"northframe.dev/northframe/pkg/auth"
+	"northframe.dev/northframe/pkg/web"
 )
 
 type FieldKind string
@@ -87,6 +88,7 @@ type Resource struct {
 	Fields      []Field
 	Permissions Permissions
 	Repository  Repository
+	Validate    func(context.Context, Record) web.FieldErrors
 }
 
 type Registry struct {

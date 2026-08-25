@@ -36,3 +36,16 @@ func TestCSRFMiddlewareRejectsMissingToken(t *testing.T) {
 		t.Fatalf("status = %d, want 403", response.Code)
 	}
 }
+
+func TestCSRFTokenIsAvailableToServerRenderedForms(t *testing.T) {
+	app := New()
+	app.HandleFunc("GET /form", func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write([]byte(CSRFToken(ContextFor(request))))
+	}, CSRF())
+	response := httptest.NewRecorder()
+	app.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/form", nil))
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 || response.Body.String() != cookies[0].Value {
+		t.Fatalf("rendered token = %q, cookies = %#v", response.Body.String(), cookies)
+	}
+}

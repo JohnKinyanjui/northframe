@@ -220,8 +220,31 @@ A resource declares its fields, labels, icon, CRUD permission names, and a
 repository backed by application services or sqlc. `VisibleResources` filters
 navigation through the current authenticated session. The registry validates
 duplicate resources and fields and supplies predictable permissions such as
-`admin.orders.view`; the framework-owned admin routes and UI will build on this
-contract without moving SQL into handlers.
+`admin.orders.view`. `admin.Mount` adds the responsive framework-owned dashboard,
+search, pagination, create, edit, and delete routes without moving SQL into
+handlers:
+
+```go
+registry := admin.NewRegistry()
+registry.MustRegister(admin.Resource{
+    Name: "products",
+    Repository: productAdminRepository,
+    Fields: []admin.Field{
+        {Name: "id", ReadOnly: true},
+        {Name: "name", Required: true, Searchable: true},
+        {Name: "status", Kind: admin.FieldSelect, Options: statusOptions},
+    },
+    Validate: validateProductAdminForm,
+})
+admin.Mount(app, registry, sessions, admin.Options{BasePath: "/admin"})
+```
+
+Existing applications do not have to replace their authentication system.
+`admin.MountWithAccess` accepts application middleware plus a resolver that maps
+the authenticated account into `auth.Session`. The resolved session is also
+available to repositories through `auth.SessionFromContext`, so tenant and user
+scope stay explicit at the service boundary. Admin forms include CSRF protection,
+reject invalid select values, and merge resource validation into field errors.
 
 ## Request context and application services
 
@@ -303,7 +326,24 @@ Plain HTML routing is the contract: `<form method="post" action="/signup">` work
 
 `PageMiddleware()` and `LayoutMiddleware()` return `[]web.Middleware`. Layout middleware is inherited by all descendant pages and actions. `web.CSRF()` provides double-submit protection and the embedded browser runtime automatically adds the hidden token to unsafe forms.
 
-Loaders can return `web.NotFound`, `web.BadRequest`, or `web.Error` for controlled status responses. Rendering happens in a buffer, so a loader or renderer failure cannot send half a document.
+Loaders can return `web.NotFound`, `web.BadRequest`, or `web.Error` for controlled
+status responses. Rendering happens in a buffer, so a loader or renderer failure
+cannot send half a document. Applications can install a native custom error page
+without losing safe public messages, status codes, request IDs, or redirects:
+
+```go
+app.SetErrorRenderer(func(writer io.Writer, page web.ErrorPage) error {
+    return components.RenderErrorPage(writer, components.ErrorPageProps{
+        Status: page.Status,
+        Message: page.Message,
+        Path: page.Path,
+    })
+})
+```
+
+The renderer can be a generated independent `.north` component. Internal error
+causes are logged server-side; production pages should only display the safe
+fields from `web.ErrorPage`.
 
 ## API routes
 
@@ -636,11 +676,14 @@ The repository intentionally keeps two focused examples: Commerce for the full f
 
 Northframe is now a useful framework prototype, but it is not production-complete. The main remaining systems are:
 
-- credential-provider adapters and framework-owned admin UI routes (opaque sessions, permission guards, and the typed admin registry are available now)
+- credential-provider adapters such as OAuth/OIDC and WebAuthn (opaque sessions,
+  permission guards, adaptable application authentication, and the framework-owned
+  admin CRUD UI are available now)
 - full TypeScript semantic checking beyond Northframe's supported state subset
 - JavaScript-package CSS imports, Node built-ins, native addons, lifecycle scripts, and multi-version dependency graphs
 - named and multiple component slots, optional/default props, events passed between components, and component package distribution
-- serializable action validation results and customizable `.north` error-page conventions
+- a filesystem `error.north` convention (custom generated error components are
+  already supported through `SetErrorRenderer`)
 - streaming responses and advanced response metadata
 - a complete Tailwind-compatible utility surface, arbitrary values, and diagnostics
 - dedicated packaged editor extensions; the stdio LSP server is available now
