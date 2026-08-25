@@ -1,4 +1,12 @@
-# Northframe
+<p align="center">
+  <img src="assets/logo.png" alt="Northframe" width="220">
+</p>
+
+<h1 align="center">Northframe</h1>
+
+<p align="center">
+  Native Go SSR with typed <code>.north</code> views and one-binary deployment.
+</p>
 
 Northframe is an experimental Laravel/Django-style framework for native Go SSR. It compiles structured `.north` views into a small generated Go layer, generates routes from the filesystem, embeds its browser runtime and CSS, and deploys as one executable.
 

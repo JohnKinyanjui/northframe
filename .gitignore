@@ -6,8 +6,6 @@
 .env
 **/.env
 *.vsix
-assets/brand/icons/northframe-icon-0*.png
-assets/brand/icons/northframe-vscode-icon*.png
 coverage.out
 *.test
 .DS_Store
