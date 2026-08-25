@@ -1,0 +1,5 @@
+[client]
+source = 'web/client'
+
+[client.dependencies]
+date-fns = '^4.4.0'

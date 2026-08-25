@@ -1,0 +1,60 @@
+{
+  "Typed Props frontmatter": {
+    "prefix": "nf-props",
+    "body": [
+      "---",
+      "${1:import models \"example/internal/models\"}",
+      "",
+      "interface Props {",
+      "  ${2:Title} ${3:string}",
+      "}",
+      "---",
+      ""
+    ],
+    "description": "Add an Astro-style typed Go Props contract"
+  },
+  "TypeScript state": {
+    "prefix": "nf-script",
+    "body": [
+      "<script lang=\"ts\">",
+      "let ${1:open}: boolean = false;",
+      "",
+      "function ${2:toggle}(): void {",
+      "  ${1:open} = !${1:open};",
+      "}",
+      "</script>"
+    ],
+    "description": "Add compiled TypeScript state"
+  },
+  "Server conditional": {
+    "prefix": "nf-if",
+    "body": [
+      "{if Props.${1:Condition}}",
+      "  $0",
+      "{/if}"
+    ],
+    "description": "Render a typed Go conditional"
+  },
+  "Server for": {
+    "prefix": "nf-for",
+    "body": [
+      "{for ${2:item} := range Props.${1:Items}}",
+      "  $0",
+      "{/for}"
+    ],
+    "description": "Range over a typed Go collection during SSR"
+  },
+  "Enhanced form": {
+    "prefix": "nf-form",
+    "body": [
+      "<form method=\"post\" action=\"${1:/action}\" nf-enhance>",
+      "  $0",
+      "  <button type=\"submit\">",
+      "    <span nf-idle>${2:Submit}</span>",
+      "    <span nf-loading hidden>${3:Saving…}</span>",
+      "  </button>",
+      "</form>"
+    ],
+    "description": "Add a progressively enhanced form"
+  }
+}

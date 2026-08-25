@@ -1,0 +1,20 @@
+<script context="props">
+import viewmodels "northframe.dev/northframe/examples/commerce/internal/viewmodels"
+Dashboard viewmodels.Dashboard
+</script>
+
+<script lang="ts">
+import { lightFormat } from "date-fns";
+
+let browserCheckedAt: string = lightFormat(new Date(), "yyyy-MM-dd HH:mm:ss");
+
+function refreshOperationsTime(): void {
+  browserCheckedAt = lightFormat(new Date(), "yyyy-MM-dd HH:mm:ss");
+}
+</script>
+
+<main class="max-w-7xl mx-auto px-6 py-10">
+  <div class="flex flex-wrap items-end justify-between gap-6 mb-10"><div><p class="text-sm font-bold text-amber-950 uppercase tracking-widest mb-3">Fulfilment control</p><h1 class="font-serif text-5xl lg:text-7xl tracking-tight leading-none mb-4">Orders in motion.</h1><p class="text-stone-600 max-w-xl">A live operational view from checkout to dispatch, backed by PostgreSQL-ready sqlc queries.</p></div><div class="text-right"><button type="button" on:click={refreshOperationsTime} class="rounded-full bg-amber-400 text-amber-950 px-6 py-3 font-bold cursor-pointer">Refresh timestamp ↻</button><p class="text-xs text-stone-500 mt-2">Browser checked {#browserCheckedAt}</p></div></div>
+  <section class="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8"><MetricCard Label="Processing" Value={Props.Dashboard.ProcessingOrders}><span class="text-xs text-sky-700">6 shipping today</span></MetricCard><MetricCard Label="Gross volume" Value={Props.Dashboard.Gross}><span class="text-xs text-emerald-700">↑ 12.4% week</span></MetricCard><MetricCard Label="Total orders" Value={Props.Dashboard.TotalOrders}><span class="text-xs text-stone-500">All channels</span></MetricCard><article class="bg-rose-600 text-white rounded-2xl p-6"><span class="text-xs uppercase tracking-widest text-rose-100">Low stock</span><strong class="font-serif text-4xl block mt-4">{Props.Dashboard.LowStock}</strong><a href="/inventory" class="text-xs">Review inventory →</a></article></section>
+  <section class="bg-white rounded-2xl border border-stone-200 overflow-x-auto"><div class="p-6 border-b border-stone-200 flex justify-between items-center"><div><h2 class="font-serif text-2xl font-bold">Dispatch queue</h2><p class="text-sm text-stone-500">Orders requiring operational attention.</p></div><span class="text-xs uppercase tracking-widest text-emerald-700">● Live</span></div><table class="w-full text-left"><thead class="text-xs uppercase tracking-widest text-stone-400"><tr><th class="px-6 py-4">Order</th><th class="px-6 py-4">Customer</th><th class="px-6 py-4">Destination</th><th class="px-6 py-4">Total</th><th class="px-6 py-4">Status</th></tr></thead><tbody>{for order := range Props.Dashboard.Orders}<tr class="border-t border-stone-100 hover:bg-stone-50"><td class="px-6 py-5"><strong class="block text-sm">{order.Reference}</strong><small class="text-stone-400">{order.PlacedAt}</small></td><td class="px-6 py-5 text-sm">{order.Customer}</td><td class="px-6 py-5 text-sm text-stone-500">{order.Destination}</td><td class="px-6 py-5 font-semibold">{order.Total}</td><td class="px-6 py-5"><span class="rounded-full bg-amber-200 text-amber-950 px-3 py-1 text-xs font-semibold">{order.Status}</span></td></tr>{/for}</tbody></table></section>
+</main>

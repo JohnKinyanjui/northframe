@@ -1,0 +1,127 @@
+<script context="props">
+import viewmodels "northframe.dev/northframe/examples/commerce/internal/viewmodels"
+Items []viewmodels.InventoryItem
+Query string
+</script>
+
+<script lang="ts">
+  let productOpen: boolean = false;
+  let productClosed: boolean = true;
+  let productName: string = "";
+
+  function openProduct(): void {
+    productOpen = true;
+    productClosed = false;
+  }
+
+  function closeProduct(): void {
+    productOpen = false;
+    productClosed = true;
+    productName = "";
+  }
+</script>
+
+<main class="max-w-7xl mx-auto px-6 py-10">
+  <div class="flex flex-wrap items-end justify-between gap-6 mb-8">
+    <div>
+      <p class="text-sm font-bold text-amber-950 uppercase tracking-widest mb-3">Stock intelligence</p>
+      <h1 class="font-serif text-5xl font-bold tracking-tight mb-3">Inventory</h1>
+      <p class="text-stone-600">Reorder risk, unit economics, and warehouse availability.</p>
+    </div>
+    <button type="button" on:click={openProduct} aria-expanded={#productOpen}
+      class="rounded-full bg-stone-950 text-white px-6 py-3 font-bold cursor-pointer">＋ Add product</button>
+  </div>
+
+  <form method="get" class="flex gap-3 bg-white rounded-2xl border border-stone-200 p-4 mb-6">
+    <input name="q" value="{Props.Query}" class="grow rounded-xl bg-stone-100 px-4 py-3 outline-none focus:bg-white"
+      placeholder="Search SKU, product, or category">
+    <button class="rounded-xl bg-amber-400 px-6 py-3 font-bold cursor-pointer">Search</button>
+  </form>
+
+  <section class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {for item := range Props.Items}
+    <InventoryCard Item={item} />
+    {/for}
+  </section>
+</main>
+
+<section show={#productOpen} class:hidden={#productClosed}
+  class="hidden fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true"
+  aria-label="Add product">
+  <button type="button" on:click={closeProduct} class="absolute inset-0 bg-stone-950 cursor-pointer"
+    aria-label="Close add product dialog"></button>
+  <div class="relative w-full max-w-2xl rounded-3xl bg-stone-50 border border-stone-200 shadow-2xl overflow-hidden">
+    <header class="flex items-start justify-between gap-6 border-b border-stone-200 px-8 py-6">
+      <div>
+        <p class="text-xs font-bold text-amber-950 uppercase tracking-widest mb-2">New catalogue item</p>
+        <h2 class="font-serif text-3xl font-bold">Add {#productName}</h2>
+      </div>
+      <button type="button" on:click={closeProduct}
+        class="rounded-full border border-stone-300 px-4 py-2 font-bold cursor-pointer"
+        aria-label="Close dialog">×</button>
+    </header>
+
+    <form method="post" action="/inventory/products" nf-enhance class="p-8">
+      <p nf-message hidden role="alert" class="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-800"></p>
+      <p nf-error="form" hidden role="alert" class="mb-5 text-sm font-bold text-red-700"></p>
+      <div class="grid md:grid-cols-2 gap-5">
+        <label class="block md:col-span-2">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">Product name</span>
+          <input name="name" bind:value={#productName} required autocomplete="off"
+            placeholder="Hand-thrown serving bowl"
+            class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-500">
+          <small id="product-name-error" nf-error="name" hidden
+            class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">SKU</span>
+          <input name="sku" required autocomplete="off" placeholder="TB-240"
+            class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-500 font-mono">
+          <small id="product-sku-error" nf-error="sku" hidden class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">Category</span>
+          <input name="category" required autocomplete="off" placeholder="Table"
+            class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-500">
+          <small id="product-category-error" nf-error="category" hidden
+            class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">Opening stock</span>
+          <input name="stock" type="number" min="0" value="0" required
+            class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-500">
+          <small id="product-stock-error" nf-error="stock" hidden
+            class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">Reorder point</span>
+          <input name="reorder_point" type="number" min="0" value="5" required
+            class="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-500">
+          <small id="product-reorder-error" nf-error="reorder_point" hidden
+            class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+        <label class="block md:col-span-2">
+          <span class="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-2">Retail price</span>
+          <div class="flex items-center rounded-xl border border-stone-300 bg-white focus:border-amber-500">
+            <span class="px-4 text-stone-400 font-bold">$</span>
+            <input name="price" type="number" min="0" step="0.01" required placeholder="0.00"
+              class="grow bg-transparent py-3 pr-4 outline-none">
+          </div>
+          <small id="product-price-error" nf-error="price" hidden
+            class="mt-2 block text-sm font-bold text-red-700"></small>
+        </label>
+      </div>
+      <footer class="flex items-center justify-between gap-4 border-t border-stone-200 mt-8 pt-6">
+        <p class="text-xs text-stone-500">Saved directly to PostgreSQL through sqlc.</p>
+        <div class="flex gap-3">
+          <button type="button" on:click={closeProduct}
+            class="rounded-xl border border-stone-300 px-5 py-3 font-bold cursor-pointer">Cancel</button>
+          <button type="submit" class="rounded-xl bg-amber-400 px-6 py-3 font-bold cursor-pointer">
+            <span nf-idle>Add product</span>
+            <span nf-loading hidden>Saving…</span>
+          </button>
+        </div>
+      </footer>
+    </form>
+  </div>
+</section>

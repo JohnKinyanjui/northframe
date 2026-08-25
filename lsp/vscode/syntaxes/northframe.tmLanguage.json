@@ -1,0 +1,244 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Northframe",
+  "scopeName": "text.html.northframe",
+  "patterns": [
+    { "include": "#props-frontmatter" },
+    { "include": "#typescript-script" },
+    { "include": "#props-script" },
+    { "include": "#server-blocks" },
+    { "include": "#expressions" },
+    { "include": "#northframe-attributes" },
+    { "include": "#components" },
+    { "include": "text.html.basic" }
+  ],
+  "repository": {
+    "props-frontmatter": {
+      "begin": "^(---)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.section.frontmatter.begin.northframe" }
+      },
+      "end": "^(---)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.section.frontmatter.end.northframe" }
+      },
+      "contentName": "meta.embedded.block.props.northframe",
+      "patterns": [
+        {
+          "match": "^\\s*(interface)\\s+(Props)\\s*(\\{)\\s*$",
+          "captures": {
+            "1": { "name": "storage.type.interface.northframe" },
+            "2": { "name": "entity.name.type.northframe" },
+            "3": { "name": "punctuation.section.block.begin.northframe" }
+          }
+        },
+        {
+          "match": "^\\s*(\\})\\s*$",
+          "captures": {
+            "1": { "name": "punctuation.section.block.end.northframe" }
+          }
+        },
+        {
+          "match": "^\\s*(import)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s+(\"[^\"]+\"|'[^']+')\\s*$",
+          "captures": {
+            "1": { "name": "keyword.control.import.go" },
+            "2": { "name": "entity.name.namespace.go" },
+            "3": { "name": "string.quoted.double.go" }
+          }
+        },
+        {
+          "match": "^\\s*([A-Z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "variable.other.property.northframe" }
+          }
+        },
+        {
+          "match": "\\b(string|bool|byte|rune|int(?:8|16|32|64)?|uint(?:8|16|32|64|ptr)?|float(?:32|64)|complex(?:64|128)|error|any)\\b",
+          "name": "storage.type.go"
+        },
+        {
+          "match": "\\b([a-z_][A-Za-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "entity.name.namespace.go" },
+            "2": { "name": "punctuation.accessor.dot.go" },
+            "3": { "name": "entity.name.type.go" }
+          }
+        },
+        {
+          "match": "\\[|\\]|\\*|\\bmap\\b|\\bchan\\b",
+          "name": "storage.type.go"
+        }
+      ]
+    },
+    "typescript-script": {
+      "begin": "(<)(script)([^>]*?\\s)(lang)(\\s*=\\s*)([\"'])(ts)(\\6)([^>]*)(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "3": { "name": "meta.tag.attributes.html" },
+        "4": { "name": "entity.other.attribute-name.html" },
+        "5": { "name": "punctuation.separator.key-value.html" },
+        "6": { "name": "punctuation.definition.string.begin.html" },
+        "7": { "name": "string.quoted.double.html" },
+        "8": { "name": "punctuation.definition.string.end.html" },
+        "9": { "name": "meta.tag.attributes.html" },
+        "10": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "end": "(</)(script)(\\s*)(>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "4": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "contentName": "meta.embedded.block.typescript.northframe",
+      "patterns": [
+        { "include": "source.ts" }
+      ]
+    },
+    "props-script": {
+      "begin": "(<)(script)([^>]*?\\s)(context)(\\s*=\\s*)([\"'])(props)(\\6)([^>]*)(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "3": { "name": "meta.tag.attributes.html" },
+        "4": { "name": "entity.other.attribute-name.html" },
+        "5": { "name": "punctuation.separator.key-value.html" },
+        "6": { "name": "punctuation.definition.string.begin.html" },
+        "7": { "name": "string.quoted.double.html" },
+        "8": { "name": "punctuation.definition.string.end.html" },
+        "9": { "name": "meta.tag.attributes.html" },
+        "10": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "end": "(</)(script)(\\s*)(>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "4": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "contentName": "meta.embedded.block.props.northframe",
+      "patterns": [
+        {
+          "match": "^\\s*(import)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s+(\"[^\"]+\"|'[^']+')\\s*$",
+          "captures": {
+            "1": { "name": "keyword.control.import.go" },
+            "2": { "name": "entity.name.namespace.go" },
+            "3": { "name": "string.quoted.double.go" }
+          }
+        },
+        {
+          "match": "^\\s*([A-Z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "variable.other.property.northframe" }
+          }
+        },
+        {
+          "match": "\\b(string|bool|byte|rune|int(?:8|16|32|64)?|uint(?:8|16|32|64|ptr)?|float(?:32|64)|complex(?:64|128)|error|any)\\b",
+          "name": "storage.type.go"
+        },
+        {
+          "match": "\\b([a-z_][A-Za-z0-9_]*)(\\.)([A-Z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "entity.name.namespace.go" },
+            "2": { "name": "punctuation.accessor.dot.go" },
+            "3": { "name": "entity.name.type.go" }
+          }
+        },
+        {
+          "match": "\\[|\\]|\\*|\\bmap\\b|\\bchan\\b",
+          "name": "storage.type.go"
+        }
+      ]
+    },
+    "server-blocks": {
+      "patterns": [
+        {
+          "begin": "(\\{)(for)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" },
+            "2": { "name": "keyword.control.loop.go" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" }
+          },
+          "contentName": "source.go",
+          "patterns": [{ "include": "source.go" }]
+        },
+        {
+          "begin": "(\\{)(if)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" },
+            "2": { "name": "keyword.control.conditional.go" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" }
+          },
+          "contentName": "source.go",
+          "patterns": [{ "include": "source.go" }]
+        },
+        {
+          "match": "(\\{#)(include)(\\s+)([A-Za-z0-9_./-]+)(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" },
+            "2": { "name": "keyword.control.import.northframe" },
+            "4": { "name": "string.unquoted.path.northframe" },
+            "5": { "name": "punctuation.section.embedded.end.northframe" }
+          }
+        },
+        {
+          "match": "(\\{/)(if|for)(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" },
+            "2": { "name": "keyword.control.northframe" },
+            "3": { "name": "punctuation.section.embedded.end.northframe" }
+          }
+        }
+      ]
+    },
+    "expressions": {
+      "patterns": [
+        {
+          "begin": "(\\{)(?![#/])",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" }
+          },
+          "contentName": "source.go",
+          "patterns": [{ "include": "source.go" }]
+        },
+        {
+          "match": "(\\{)(#)([A-Za-z_][A-Za-z0-9_.]*)(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" },
+            "2": { "name": "keyword.operator.client.northframe" },
+            "3": { "name": "variable.other.readwrite.ts.northframe" },
+            "4": { "name": "punctuation.section.embedded.end.northframe" }
+          }
+        }
+      ]
+    },
+    "northframe-attributes": {
+      "patterns": [
+        {
+          "match": "\\b(on:[A-Za-z][A-Za-z0-9_-]*|bind:value|show|class:[A-Za-z_][A-Za-z0-9_-]*|nf-(?:enhance|loading|idle|error|message))\\b",
+          "name": "entity.other.attribute-name.northframe"
+        }
+      ]
+    },
+    "components": {
+      "patterns": [
+        {
+          "match": "(</?)([A-Z][A-Za-z0-9]*)(?=\\s|/?>)",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.html" },
+            "2": { "name": "support.class.component.northframe" }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "name": "northframe",
+  "displayName": "Northframe",
+  "description": "Language support for Northframe .north SSR components.",
+  "version": "0.0.0",
+  "publisher": "northframe",
+  "icon": "icon.png",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Snippets"
+  ],
+  "keywords": [
+    "northframe",
+    "golang",
+    "ssr",
+    "templates"
+  ],
+  "activationEvents": [
+    "onLanguage:northframe",
+    "onCommand:northframe.restartLanguageServer"
+  ],
+  "extensionDependencies": [
+    "bradlc.vscode-tailwindcss"
+  ],
+  "main": "./extension.js",
+  "scripts": {
+    "check": "node --check extension.js && node --check lsp-client.js && node --check embedded.js",
+    "test": "node --test test/*.test.js"
+  },
+  "contributes": {
+    "configurationDefaults": {
+      "[northframe]": {
+        "editor.defaultFormatter": "northframe.northframe",
+        "editor.quickSuggestions": {
+          "comments": "off",
+          "strings": "on",
+          "other": "on"
+        }
+      },
+      "emmet.includeLanguages": {
+        "northframe": "html"
+      },
+      "tailwindCSS.includeLanguages": {
+        "northframe": "html"
+      }
+    },
+    "languages": [
+      {
+        "id": "northframe",
+        "aliases": [
+          "Northframe",
+          "northframe"
+        ],
+        "extensions": [
+          ".north"
+        ],
+        "icon": {
+          "light": "./icons/northframe-file-light.svg",
+          "dark": "./icons/northframe-file-dark.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "northframe",
+        "scopeName": "text.html.northframe",
+        "path": "./syntaxes/northframe.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.typescript.northframe": "typescript"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "northframe",
+        "path": "./snippets/northframe.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "northframe.restartLanguageServer",
+        "title": "Northframe: Restart Language Server"
+      },
+      {
+        "command": "northframe.showOutput",
+        "title": "Northframe: Show Language Server Output"
+      }
+    ],
+    "configuration": {
+      "title": "Northframe",
+      "properties": {
+        "northframe.server.path": {
+          "type": "string",
+          "default": "north",
+          "description": "Path to the Northframe CLI executable."
+        },
+        "northframe.server.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "lsp"
+          ],
+          "description": "Arguments used to start the Northframe language server."
+        }
+      }
+    }
+  }
+}

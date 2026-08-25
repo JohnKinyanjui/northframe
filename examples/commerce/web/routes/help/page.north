@@ -1,0 +1,35 @@
+<script context="props">
+import viewmodels "northframe.dev/northframe/examples/commerce/internal/viewmodels"
+Questions []viewmodels.Question
+Query string
+Total int
+</script>
+
+<main class="max-w-7xl mx-auto px-6 py-10">
+  <header class="grid md:grid-cols-2 gap-8 items-end mb-10">
+    <div>
+      <p class="text-sm font-bold text-amber-950 uppercase tracking-widest mb-3">Framework field guide</p>
+      <h1 class="font-serif text-5xl lg:text-7xl tracking-tight leading-none mb-4">Northframe Q&amp;A.</h1>
+      <p class="text-stone-600 max-w-xl">Straight answers about Northframe versus Svelte and JavaScript frameworks, its
+        Go-first architecture, TypeScript state, components, databases, and deployment.</p>
+    </div>
+    <aside class="rounded-2xl bg-stone-950 text-white p-6">
+      <span class="block text-xs uppercase tracking-widest text-amber-300 mb-2">Knowledge coverage</span>
+      <strong class="font-serif text-4xl">{Props.Total}</strong>
+      <span class="text-sm text-stone-400"> maintained answers</span>
+    </aside>
+  </header>
+
+  <form method="get" class="flex gap-3 bg-white rounded-2xl border border-stone-200 p-4 mb-8">
+    <input name="q" value="{Props.Query}" class="grow rounded-xl bg-stone-100 px-4 py-3 outline-none focus:bg-white"
+      placeholder="Search Svelte, TypeScript, WebAssembly, components, or deployment">
+    <button class="rounded-xl bg-amber-400 px-6 py-3 font-bold cursor-pointer">Search answers</button>
+  </form>
+
+  <section class="grid md:grid-cols-2 gap-4">
+    {for question := range Props.Questions}
+    <AnswerCard Category={question.Category} Owner={question.Owner} Question={question.Question}
+      Answer={question.Answer} />
+    {/for}
+  </section>
+</main>

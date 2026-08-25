@@ -1,0 +1,10 @@
+<script context="props">
+Label string
+Value any
+</script>
+
+<article class="bg-white border border-stone-200 rounded-2xl p-6">
+  <span class="text-xs uppercase tracking-widest text-stone-400">{Props.Label}</span>
+  <strong class="font-serif text-4xl block mt-4">{Props.Value}</strong>
+  <slot />
+</article>

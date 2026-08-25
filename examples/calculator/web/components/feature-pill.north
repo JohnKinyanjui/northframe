@@ -1,0 +1,5 @@
+<script context="props">
+Text string
+</script>
+
+<span class="rounded-full border border-stone-700 px-3 py-2">{Props.Text}</span>

@@ -1,0 +1,8 @@
+{
+  "name": "Northframe Calculator",
+  "short_name": "NF Compute",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#bef264"
+}

@@ -1,0 +1,25 @@
+<!-- Application root layout -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A working calculator rendered by Northframe and Go.">
+  <link rel="manifest" href="/public/site.webmanifest">
+  <title>{Props.Title}</title>
+</head>
+<body class="min-h-screen bg-stone-950 text-stone-100 font-mono antialiased">
+  <header class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between border-stone-800 border">
+    <a class="font-extrabold tracking-tight text-xl" href="/">NORTHFRAME</a>
+    <span class="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-stone-400">
+      <span class="block w-2 h-2 rounded-full bg-lime-300"></span>
+      Native Go SSR
+    </span>
+  </header>
+  <slot />
+  <footer class="max-w-6xl mx-auto px-6 py-8 text-xs uppercase tracking-widest text-stone-600 flex justify-between">
+    <span>Built without Node</span>
+    <span>NF / 001</span>
+  </footer>
+</body>
+</html>

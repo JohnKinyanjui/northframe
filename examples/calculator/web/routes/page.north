@@ -1,0 +1,61 @@
+<!-- Calculator home route -->
+<main class="max-w-6xl mx-auto px-6 py-12 lg:py-20">
+  <section class="grid lg:grid-cols-2 gap-12 items-center">
+    <div>
+      <div class="inline-flex items-center gap-2 rounded-full border border-stone-700 px-4 py-2 text-xs uppercase tracking-widest text-stone-400 mb-8">
+        <span class="block w-2 h-2 rounded-full bg-amber-400"></span>
+        Example 01 · Calculator
+      </div>
+      <h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight leading-none mb-6">{Props.Title}</h1>
+      <p class="text-lg text-stone-400 leading-tight max-w-xl mb-8">The first complete Northframe interaction: server-rendered from <strong class="text-stone-200">page.north</strong>, styled by the internal utility compiler, then hydrated by the embedded browser runtime.</p>
+      <div class="flex flex-wrap gap-3 text-xs uppercase tracking-wide text-stone-400">
+        <FeaturePill Text="Keyboard ready" />
+        <FeaturePill Text="Zero dependencies" />
+        <FeaturePill Text="One binary" />
+      </div>
+    </div>
+
+    <section class="w-full max-w-md mx-auto rounded-3xl border-2 border-stone-700 bg-stone-900 p-3 shadow-2xl select-none" data-northframe data-nf-calculator tabindex="0" aria-label="Calculator">
+      <div class="flex items-center justify-between px-3 py-3 text-xs uppercase tracking-widest text-stone-400">
+        <span>NF Compute</span>
+        <span class="text-amber-400">R1</span>
+      </div>
+
+      <div class="rounded-2xl bg-lime-200 text-lime-950 p-6 mb-3 text-right overflow-hidden">
+        <div class="text-sm uppercase tracking-wide opacity-60 truncate" data-nf-expression>Ready</div>
+        <output class="block text-5xl sm:text-6xl font-extrabold tracking-tight leading-none tabular-nums whitespace-nowrap" data-nf-display aria-live="polite">{Props.InitialValue}</output>
+      </div>
+
+      <div class="grid grid-cols-4 gap-2" role="group" aria-label="Calculator keys">
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-300 hover:bg-stone-200 active:scale-95 text-stone-950 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="clear" aria-label="Clear">AC</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="sign" aria-label="Toggle positive or negative">±</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="percent" aria-label="Percent">%</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 text-2xl font-extrabold transition duration-100 cursor-pointer" type="button" data-nf-key="divide" aria-label="Divide">÷</button>
+
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="7">7</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="8">8</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="9">9</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 text-2xl font-extrabold transition duration-100 cursor-pointer" type="button" data-nf-key="multiply" aria-label="Multiply">×</button>
+
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="4">4</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="5">5</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="6">6</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 text-2xl font-extrabold transition duration-100 cursor-pointer" type="button" data-nf-key="subtract" aria-label="Subtract">−</button>
+
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="1">1</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="2">2</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="3">3</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 text-2xl font-extrabold transition duration-100 cursor-pointer" type="button" data-nf-key="add" aria-label="Add">+</button>
+
+        <button class="col-span-2 h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-xl font-bold text-left px-6 transition duration-100 cursor-pointer" type="button" data-nf-key="0">0</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-100 text-2xl font-bold transition duration-100 cursor-pointer" type="button" data-nf-key="decimal" aria-label="Decimal point">.</button>
+        <button class="h-16 sm:h-20 rounded-xl bg-lime-300 hover:bg-lime-200 active:scale-95 text-lime-950 text-2xl font-extrabold transition duration-100 cursor-pointer" type="button" data-nf-key="equals" aria-label="Equals">=</button>
+      </div>
+
+      <div class="flex items-center justify-between px-3 pt-4 pb-2 text-xs uppercase tracking-wide text-stone-600">
+        <span>Esc clears · Enter solves</span>
+        <button class="text-stone-400 hover:text-stone-200 cursor-pointer" type="button" data-nf-key="backspace" aria-label="Backspace">⌫</button>
+      </div>
+    </section>
+  </section>
+</main>
