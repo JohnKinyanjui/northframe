@@ -1,10 +1,14 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -16,6 +20,11 @@ type typedFormInput struct {
 	Featured bool     `form:"featured"`
 	Tags     []string `form:"tag"`
 	Optional int      `form:"optional"`
+}
+
+type uploadFormInput struct {
+	Title string                `form:"title" validate:"required"`
+	Image *multipart.FileHeader `form:"image" label:"Product image" validate:"required,maxbytes=64" accept:"image/*"`
 }
 
 func TestDecodeFormProducesTypedInput(t *testing.T) {
@@ -107,8 +116,69 @@ func TestPostFormRejectsNonStructInputAtRegistration(t *testing.T) {
 	})
 }
 
+func TestDecodeFormValidatesAndSavesTypedUpload(t *testing.T) {
+	png := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0, 0, 0, 0}
+	request := multipartRequest(t, map[string]string{"title": "Serving bowl"}, "image", "../bowl.png", png)
+	input, fields, err := DecodeForm[uploadFormInput](request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fields) != 0 || input.Image == nil {
+		t.Fatalf("input = %#v, fields = %#v", input, fields)
+	}
+	if filename := UploadedFilename(input.Image); filename != "bowl.png" {
+		t.Fatalf("filename = %q, want bowl.png", filename)
+	}
+	destination := filepath.Join(t.TempDir(), "stored.png")
+	if err := SaveUploadedFile(input.Image, destination, 64); err != nil {
+		t.Fatalf("save upload: %v", err)
+	}
+	stored, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(stored, png) {
+		t.Fatalf("stored upload = %v, want %v", stored, png)
+	}
+}
+
+func TestDecodeFormRejectsUploadTypeAndSize(t *testing.T) {
+	request := multipartRequest(t, map[string]string{"title": "Notes"}, "image", "notes.txt", []byte(strings.Repeat("x", 80)))
+	_, fields, err := DecodeForm[uploadFormInput](request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fields["image"] == "" {
+		t.Fatalf("missing image validation error: %#v", fields)
+	}
+}
+
 func formRequest(values url.Values) *http.Request {
 	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(values.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return request
+}
+
+func multipartRequest(t *testing.T, values map[string]string, field, filename string, contents []byte) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for name, value := range values {
+		if err := writer.WriteField(name, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	part, err := writer.CreateFormFile(field, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(contents); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
 	return request
 }

@@ -215,6 +215,14 @@ actions access the resolved identity with `auth.Current(ctx)` or
 multi-factor challenges remain application services instead of framework-owned
 database models.
 
+`pkg/admin` provides the typed resource registry for internal administration.
+A resource declares its fields, labels, icon, CRUD permission names, and a
+repository backed by application services or sqlc. `VisibleResources` filters
+navigation through the current authenticated session. The registry validates
+duplicate resources and fields and supplies predictable permissions such as
+`admin.orders.view`; the framework-owned admin routes and UI will build on this
+contract without moving SQL into handlers.
+
 ## Request context and application services
 
 Loaders and actions receive `*web.Context`, not a bare `*http.Request`. The context provides:
@@ -399,6 +407,24 @@ Add `nf-enhance` when a POST form should use the embedded browser runtime. Witho
 ```
 
 Forms dispatch `northframe:submit`, `northframe:success`, `northframe:invalid`, `northframe:error`, and `northframe:complete` DOM events for application-specific behavior.
+
+Typed inputs may include `*multipart.FileHeader` or
+`[]*multipart.FileHeader`. The same `required` validation works for files;
+`maxbytes` enforces size and the separate `accept` tag checks media types from
+the file contents instead of trusting the browser header:
+
+```go
+type ProductInput struct {
+    Name  string                `form:"name" validate:"required,min=3"`
+    Image *multipart.FileHeader `form:"image" validate:"required,maxbytes=5242880" accept:"image/*"`
+}
+```
+
+`web.SaveUploadedFile` streams to an explicit application path through a
+same-directory temporary file, enforces the limit again, syncs the complete
+content, and atomically replaces the destination. `web.UploadedFilename`
+returns only a safe display basename; applications should generate storage
+keys rather than trusting client filenames.
 
 Structured errors are rendered into `[nf-error="field_name"]`; `[nf-message]`
 receives the action message. Matching controls receive `aria-invalid`, and the
@@ -610,7 +636,7 @@ The repository intentionally keeps two focused examples: Commerce for the full f
 
 Northframe is now a useful framework prototype, but it is not production-complete. The main remaining systems are:
 
-- credential-provider adapters and an admin resource registry (opaque sessions and permission guards are available now)
+- credential-provider adapters and framework-owned admin UI routes (opaque sessions, permission guards, and the typed admin registry are available now)
 - full TypeScript semantic checking beyond Northframe's supported state subset
 - JavaScript-package CSS imports, Node built-ins, native addons, lifecycle scripts, and multi-version dependency graphs
 - named and multiple component slots, optional/default props, events passed between components, and component package distribution

@@ -13,6 +13,7 @@ func (session Session) Can(permission string) bool {
 		return false
 	}
 	for _, granted := range session.Permissions {
+		granted = normalizePermission(granted)
 		if granted == "*" || granted == permission {
 			return true
 		}

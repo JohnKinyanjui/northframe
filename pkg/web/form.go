@@ -3,8 +3,12 @@ package web
 import (
 	"encoding"
 	"fmt"
+	"io"
 	"mime"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -13,6 +17,12 @@ import (
 const maxFormMemory = 8 << 20
 
 var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var fileHeaderPointerType = reflect.TypeOf((*multipart.FileHeader)(nil))
+
+type parsedForm struct {
+	values map[string][]string
+	files  map[string][]*multipart.FileHeader
+}
 
 // FieldErrors maps HTML form field names to safe, user-facing messages.
 type FieldErrors map[string]string
@@ -26,7 +36,7 @@ type FieldErrors map[string]string
 // formats without changing Northframe's decoder.
 func DecodeForm[T any](request *http.Request) (T, FieldErrors, error) {
 	var result T
-	values, err := parseRequestForm(request)
+	form, err := parseRequestForm(request)
 	if err != nil {
 		return result, nil, fmt.Errorf("parse form: %w", err)
 	}
@@ -36,26 +46,30 @@ func DecodeForm[T any](request *http.Request) (T, FieldErrors, error) {
 	}
 
 	errors := make(FieldErrors)
-	decodeStruct(value, values, errors)
+	decodeStruct(value, form, errors)
 	if len(errors) == 0 {
 		errors = nil
 	}
 	return result, errors, nil
 }
 
-func parseRequestForm(request *http.Request) (map[string][]string, error) {
+func parseRequestForm(request *http.Request) (parsedForm, error) {
 	mediaType, _, _ := mime.ParseMediaType(request.Header.Get("Content-Type"))
 	if mediaType == "multipart/form-data" {
 		if err := request.ParseMultipartForm(maxFormMemory); err != nil {
-			return nil, err
+			return parsedForm{}, err
 		}
 	} else if err := request.ParseForm(); err != nil {
-		return nil, err
+		return parsedForm{}, err
 	}
-	return request.Form, nil
+	result := parsedForm{values: request.Form}
+	if request.MultipartForm != nil {
+		result.files = request.MultipartForm.File
+	}
+	return result, nil
 }
 
-func decodeStruct(destination reflect.Value, values map[string][]string, errors FieldErrors) {
+func decodeStruct(destination reflect.Value, form parsedForm, errors FieldErrors) {
 	typeInfo := destination.Type()
 	for index := 0; index < destination.NumField(); index++ {
 		fieldInfo := typeInfo.Field(index)
@@ -67,7 +81,11 @@ func decodeStruct(destination reflect.Value, values map[string][]string, errors 
 		if name == "-" {
 			continue
 		}
-		rawValues, exists := values[name]
+		if isFileField(field.Type()) {
+			decodeFileField(field, form.files[name], fieldInfo, name, errors)
+			continue
+		}
+		rawValues, exists := form.values[name]
 		raw := ""
 		if len(rawValues) > 0 {
 			raw = rawValues[0]
@@ -92,6 +110,150 @@ func decodeStruct(destination reflect.Value, values map[string][]string, errors 
 			errors[name] = message
 		}
 	}
+}
+
+func isFileField(fieldType reflect.Type) bool {
+	if fieldType == fileHeaderPointerType {
+		return true
+	}
+	return fieldType.Kind() == reflect.Slice && fieldType.Elem() == fileHeaderPointerType
+}
+
+func decodeFileField(destination reflect.Value, files []*multipart.FileHeader, fieldInfo reflect.StructField, name string, fieldErrors FieldErrors) {
+	label := fieldLabel(fieldInfo, name)
+	if message := validateFiles(files, fieldInfo.Tag.Get("validate"), fieldInfo.Tag.Get("accept"), label); message != "" {
+		fieldErrors[name] = message
+		return
+	}
+	if len(files) == 0 {
+		return
+	}
+	if destination.Type() == fileHeaderPointerType {
+		destination.Set(reflect.ValueOf(files[0]))
+		return
+	}
+	destination.Set(reflect.ValueOf(files))
+}
+
+func validateFiles(files []*multipart.FileHeader, rules, accepted, label string) string {
+	if hasValidationRule(rules, "required") && len(files) == 0 {
+		return label + " is required"
+	}
+	for _, file := range files {
+		for _, rule := range validationRules(rules) {
+			if rule.name == "maxbytes" && rule.value != "" {
+				maximum, err := strconv.ParseInt(rule.value, 10, 64)
+				if err == nil && maximum >= 0 && file.Size > maximum {
+					return fmt.Sprintf("%s must be at most %s bytes", label, rule.value)
+				}
+			}
+		}
+		if accepted != "" {
+			contentType, err := UploadedContentType(file)
+			if err != nil || !contentTypeAccepted(contentType, accepted) {
+				return label + " has an unsupported file type"
+			}
+		}
+	}
+	return ""
+}
+
+func contentTypeAccepted(contentType, accepted string) bool {
+	for _, candidate := range strings.Split(accepted, ",") {
+		candidate = strings.ToLower(strings.TrimSpace(candidate))
+		if candidate == "" {
+			continue
+		}
+		if candidate == contentType {
+			return true
+		}
+		if strings.HasSuffix(candidate, "/*") && strings.HasPrefix(contentType, strings.TrimSuffix(candidate, "*")) {
+			return true
+		}
+	}
+	return false
+}
+
+// UploadedContentType detects a file's media type from its first 512 bytes
+// instead of trusting the browser-provided Content-Type header.
+func UploadedContentType(header *multipart.FileHeader) (string, error) {
+	if header == nil {
+		return "", fmt.Errorf("uploaded file is nil")
+	}
+	file, err := header.Open()
+	if err != nil {
+		return "", fmt.Errorf("open uploaded file: %w", err)
+	}
+	defer file.Close()
+	buffer := make([]byte, 512)
+	read, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", fmt.Errorf("inspect uploaded file: %w", err)
+	}
+	return strings.ToLower(http.DetectContentType(buffer[:read])), nil
+}
+
+// UploadedFilename returns a display-safe base name. Applications should
+// generate their own storage key instead of using it as a destination path.
+func UploadedFilename(header *multipart.FileHeader) string {
+	if header == nil {
+		return ""
+	}
+	return filepath.Base(strings.ReplaceAll(header.Filename, "\\", "/"))
+}
+
+// SaveUploadedFile atomically streams an upload to an explicit application
+// path. maxBytes <= 0 disables the size limit. Existing destinations are
+// replaced only after the complete file has been written and synced.
+func SaveUploadedFile(header *multipart.FileHeader, destination string, maxBytes int64) (saveErr error) {
+	if header == nil {
+		return fmt.Errorf("uploaded file is nil")
+	}
+	if maxBytes > 0 && header.Size > maxBytes {
+		return fmt.Errorf("uploaded file exceeds %d bytes", maxBytes)
+	}
+	source, err := header.Open()
+	if err != nil {
+		return fmt.Errorf("open uploaded file: %w", err)
+	}
+	defer source.Close()
+
+	directory := filepath.Dir(destination)
+	temporary, err := os.CreateTemp(directory, ".northframe-upload-*")
+	if err != nil {
+		return fmt.Errorf("create temporary upload: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		_ = temporary.Close()
+		if saveErr != nil {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+	if err := temporary.Chmod(0o644); err != nil {
+		return fmt.Errorf("set upload permissions: %w", err)
+	}
+	reader := io.Reader(source)
+	if maxBytes > 0 {
+		reader = io.LimitReader(source, maxBytes+1)
+	}
+	written, err := io.Copy(temporary, reader)
+	if err != nil {
+		return fmt.Errorf("write upload: %w", err)
+	}
+	if maxBytes > 0 && written > maxBytes {
+		return fmt.Errorf("uploaded file exceeds %d bytes", maxBytes)
+	}
+	if err := temporary.Sync(); err != nil {
+		return fmt.Errorf("sync upload: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close upload: %w", err)
+	}
+	if err := os.Rename(temporaryPath, destination); err != nil {
+		return fmt.Errorf("store upload: %w", err)
+	}
+	return nil
 }
 
 func assignFormValue(destination reflect.Value, values []string) error {
