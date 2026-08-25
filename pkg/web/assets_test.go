@@ -13,7 +13,8 @@ func TestBrowserHandlerServesModularRuntime(t *testing.T) {
 		path     string
 		contains string
 	}{
-		{path: "/runtime.js", contains: `from "./forms.js"`},
+		{path: "/runtime.js", contains: `from "./reload.js"`},
+		{path: "/reload.js", contains: "enableDevelopmentReload"},
 		{path: "/component.js", contains: "mountComponent"},
 		{path: "/forms.js", contains: "nf-enhance"},
 		{path: "/calculator.js", contains: "mountCalculators"},

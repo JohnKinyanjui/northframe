@@ -21,6 +21,7 @@ type App struct {
 	dependencies map[reflect.Type]any
 	middleware   []Middleware
 	errorHandler func(http.ResponseWriter, *http.Request, error)
+	sockets      *socketRegistry
 	mu           sync.RWMutex
 }
 
@@ -29,8 +30,10 @@ func New() *App {
 	app := &App{
 		mux:          http.NewServeMux(),
 		dependencies: make(map[reflect.Type]any),
+		sockets:      newSocketRegistry(),
 	}
 	app.errorHandler = app.defaultErrorHandler
+	app.enableDevelopmentReload()
 	return app
 }
 

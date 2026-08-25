@@ -67,7 +67,10 @@ usage:
   north run          compile, serve, and reload during development
   north build        produce one deployment binary
   north db generate  generate typed database code with sqlc
+  north db create    create the next reversible Goose migration
   north db migrate   apply pending application database migrations
+  north db rollback  roll back the latest application migration
+  north db seed      run the application's database seeder
   north db status    show application database migration status
   north db verify    validate migration files without connecting
   north add PACKAGE  add and lock a browser JavaScript dependency

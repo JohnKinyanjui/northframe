@@ -31,6 +31,10 @@ north create .
 north generate
 north build -o ./app
 north db generate
+north db create add_store_members
+north db migrate
+north db rollback
+north db seed
 north add date-fns
 north remove date-fns
 north update
@@ -179,6 +183,38 @@ http.ListenAndServe(":8080", app)
 
 Northframe emits `PageProps` into the matching `.generated/routes/<route>/props_generated.go`, and the renderer and loader compile against that same type. A renamed, missing, or incompatible field fails at `go build`. `{Props.Name}` is an HTML-escaped Go value. `{if Props.Condition}` and `{for item := range Props.Items}` become native Go control flow and accept Go expressions. Generated renderers are formatted with `gofmt`. Existing handwritten props structs remain supported during migration, but a route must use either the template contract or the handwritten struct—not both.
 
+## Authentication, sessions, and permissions
+
+`pkg/auth` provides optional opaque server-side sessions without imposing a
+user table or database engine. Applications implement `auth.Store` with their
+database or cache; `auth.NewMemoryStore` is available for development and tests:
+
+```go
+sessions, err := auth.New(auth.Config{
+    Store:      postgresSessionStore,
+    CookieName: "topduka_session",
+    Lifetime:   24 * time.Hour,
+    Secure:     true,
+})
+
+app.Use(auth.Load(sessions))
+app.Handle("GET /dashboard", dashboard,
+    auth.Require(sessions, auth.GuardOptions{
+        LoginPath:   "/login",
+        Permissions: []string{"dashboard.read"},
+    }),
+)
+```
+
+After verifying credentials, call `sessions.Start`. The browser receives a
+32-byte random HttpOnly opaque token while the store only receives its SHA-256
+digest. Sessions support expiry, revocation, application values, exact
+permissions, global `*`, and namespace grants such as `orders.*`. Loaders and
+actions access the resolved identity with `auth.Current(ctx)` or
+`auth.MustCurrent(ctx)`. Password policy, user records, OAuth providers, and
+multi-factor challenges remain application services instead of framework-owned
+database models.
+
 ## Request context and application services
 
 Loaders and actions receive `*web.Context`, not a bare `*http.Request`. The context provides:
@@ -303,6 +339,50 @@ an organizational option, never a requirement.
 Use `ctx.DecodeJSON(&input)` for strict request decoding. It rejects unknown
 fields and limits request bodies to 1 MiB. Controlled errors are returned as a
 safe JSON envelope, while internal error details remain server-only.
+
+## WebSockets
+
+WebSockets run on the same Northframe server and through the same middleware
+chain as pages and API routes. No proxy or second process is required:
+
+```go
+app.WebSocket("/ws/notifications", web.SocketOptions{
+    OriginPatterns:   []string{"admin.example.com"}, // omit for same-origin only
+    ReadLimit:        64 << 10,
+    ReadTimeout:      75 * time.Second,
+    WriteTimeout:     5 * time.Second,
+    MaxConnections:   1_000,
+    Compression:      web.SocketCompressionNoContextTakeover,
+}, func(ctx *web.Context, socket *web.Socket) error {
+    notifications := web.MustUse[*NotificationService](ctx)
+    for {
+        var message ClientMessage
+        if err := socket.ReadJSON(socket.Context(), &message); err != nil {
+            return err
+        }
+        response, err := notifications.Handle(socket.Context(), message)
+        if err != nil {
+            return err
+        }
+        if err := socket.WriteJSON(socket.Context(), response); err != nil {
+            return err
+        }
+    }
+}, requireSession)
+```
+
+Same-origin verification is enabled by default. `OriginPatterns` explicitly
+allows trusted cross-origin browser clients; `InsecureSkipVerify` exists for
+non-browser development clients but should not be enabled in production.
+Route middleware runs before the upgrade, making it the right place to reject
+unauthenticated connections with a normal HTTP response.
+
+`Socket` provides context-aware text, binary, JSON, ping, subprotocol, and close
+operations. `ReadLimit`, endpoint connection limits, read/write timeouts, panic
+containment, and optional compression are enforced by the framework. During
+server shutdown, call `app.ShutdownWebSockets(ctx)` before `http.Server.Shutdown`
+to send active clients status 1001 and then force-close them if the deadline
+expires.
 
 ## Progressive forms and loading UI
 
@@ -477,13 +557,20 @@ the project's `.env` and exposes the runner through a consistent CLI:
 
 ```sh
 north db verify
+north db create add_store_members
 north db migrate
+north db rollback
+north db seed
 north db status
 north db version
 ```
 
-`north db migrate` maps to the runner's `up` operation. `north db adopt` is
-also available for applications that need to baseline a known legacy schema.
+`north db create` writes the next zero-padded migration below
+`internal/db/migrations` with Goose `Up` and `Down` sections. `north db migrate`
+and `north db rollback` map to the application runner's `up` and `down`
+operations. `north db seed` runs `cmd/seeder` and forwards options such as
+`-only`. `north db adopt` is also available for applications that need to
+baseline a known legacy schema.
 
 Northframe treats `internal/db/generated` as read-only output. SQL belongs in `internal/db/query`, schemas or migrations belong in `internal/db/schema` or `internal/db/migrations`, and handlers/services consume the generated query API.
 
@@ -523,15 +610,13 @@ The repository intentionally keeps two focused examples: Commerce for the full f
 
 Northframe is now a useful framework prototype, but it is not production-complete. The main remaining systems are:
 
-- authentication, sessions, permissions, and an admin resource registry
+- credential-provider adapters and an admin resource registry (opaque sessions and permission guards are available now)
 - full TypeScript semantic checking beyond Northframe's supported state subset
 - JavaScript-package CSS imports, Node built-ins, native addons, lifecycle scripts, and multi-version dependency graphs
 - named and multiple component slots, optional/default props, events passed between components, and component package distribution
 - serializable action validation results and customizable `.north` error-page conventions
 - streaming responses and advanced response metadata
-- built-in migration creation, rollback, and seed orchestration beyond the application migrator CLI
 - a complete Tailwind-compatible utility surface, arbitrary values, and diagnostics
-- browser hot reload instead of server-process restart only
 - dedicated packaged editor extensions; the stdio LSP server is available now
 - production observability, caching, queues, mail, scheduled jobs, and deployment adapters
 # northframe
