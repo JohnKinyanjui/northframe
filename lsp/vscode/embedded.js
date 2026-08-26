@@ -2,6 +2,12 @@
 
 const scriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
 const propsFrontmatterPattern = /^---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/gm;
+const serverDirectivePattern = /\{(?:\/(?:if|for)|if\s+[\s\S]*?|for\s+[A-Za-z_][A-Za-z0-9_]*\s*:=\s*range\s+[\s\S]*?)\}/g;
+
+function normalizeServerDirectives(source) {
+  return source.replace(serverDirectivePattern, (directive) =>
+    directive.replace(/^\{(if|for)\s+/, "{$1 "));
+}
 
 function scriptRegions(source) {
   const regions = [];
@@ -78,8 +84,15 @@ function formattingTemplate(source) {
       result = result.slice(0, region.contentStart) + `\n${marker}\n` + result.slice(region.contentEnd);
     }
   }
+  const directives = [];
+  result = normalizeServerDirectives(result).replace(serverDirectivePattern, (value) => {
+    const marker = `<!--__NORTHFRAME_DIRECTIVE_${directives.length}__-->`;
+    directives.push({ marker, value });
+    return marker;
+  });
   return {
     source: result,
+    directives,
     regions: regions.map((region, index) => ({
       ...region,
       marker: region.frontmatter
@@ -109,6 +122,9 @@ function restoreFormattedScripts(template, formattedContents) {
       .replace(/\r?\n\s*$/, "");
     const replacement = content.split("\n").join("\n" + indentation);
     result = result.slice(0, markerOffset) + replacement + result.slice(markerOffset + marker.length);
+  }
+  for (const directive of template.directives || []) {
+    result = result.replace(directive.marker, directive.value);
   }
   return result.replace(/[ \t]+\n/g, "\n").replace(/^\s*\n/, "").replace(/\s*$/, "\n");
 }
@@ -142,7 +158,7 @@ function formatPropLines(lines) {
 
 function formatNorthframeBlocks(source, indentation = "  ") {
   const openBlocks = [];
-  return source
+  return normalizeServerDirectives(source)
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
@@ -195,6 +211,7 @@ module.exports = {
   formatNorthframeBlocks,
   formattingTemplate,
   htmlVirtualContent,
+  normalizeServerDirectives,
   restoreFormattedScripts,
   scriptRegionAt,
   scriptRegions,

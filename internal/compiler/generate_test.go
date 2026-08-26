@@ -98,6 +98,36 @@ Visible bool
 	}
 }
 
+func TestCompileSupportsMultilineServerDirectives(t *testing.T) {
+	source := []byte(`---
+interface Props {
+    Enabled bool
+    Items []string
+}
+---
+{if
+    !Props.Enabled}<p>Disabled</p>{/if}
+{for
+    item := range Props.Items}<span>{item}</span>{/for}`)
+	generated, err := Compile("routes", "page", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(generated)
+	for _, expected := range []string{"if !web.Truthy(props.Enabled)", "for _, item := range props.Items"} {
+		if !strings.Contains(result, expected) {
+			t.Errorf("generated multiline directive does not contain %q\n%s", expected, result)
+		}
+	}
+}
+
+func TestCompileKeepsActionableErrorForMalformedMultilineLoop(t *testing.T) {
+	_, err := Compile("routes", "page", []byte("{for\nitem range Props.Items}{/for}"))
+	if err == nil || !strings.Contains(err.Error(), "use `{for item := range Props.Items}`") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestCompileDoesNotImportRuntimeForComparisonOnlyControlFlow(t *testing.T) {
 	generated, err := Compile("components", "provider_mark", []byte(`---
 interface Props {

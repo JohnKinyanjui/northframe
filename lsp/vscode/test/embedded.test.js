@@ -8,6 +8,7 @@ const {
   formatNorthframeBlocks,
   formattingTemplate,
   htmlVirtualContent,
+  normalizeServerDirectives,
   restoreFormattedScripts,
   scriptRegionAt,
   scriptRegions,
@@ -123,6 +124,22 @@ test("server formatter preserves inline blocks and closing tags", () => {
   assert.equal(formatted, source);
   assert.equal((formatted.match(/<\/section>/g) || []).length, 1);
   assert.equal((formatted.match(/\{\/for\}/g) || []).length, 1);
+});
+
+test("multiline server directives are normalized and protected from HTML formatting", () => {
+  const source = `{if
+  !Props.CashEnabled}<span>Disabled</span>{/if}
+{for
+  item := range Props.Items}<span>{item.Name}</span>{/for}`;
+  assert.equal(
+    normalizeServerDirectives(source),
+    `{if !Props.CashEnabled}<span>Disabled</span>{/if}\n{for item := range Props.Items}<span>{item.Name}</span>{/for}`,
+  );
+  const template = formattingTemplate(source);
+  assert.doesNotMatch(template.source, /\{(?:if|for|\/(?:if|for))/);
+  assert.equal(template.directives.length, 4);
+  const restored = restoreFormattedScripts(template, []);
+  assert.equal(restored, `{if !Props.CashEnabled}<span>Disabled</span>{/if}\n{for item := range Props.Items}<span>{item.Name}</span>{/for}\n`);
 });
 
 test("overlapping formatter edits cannot duplicate component tails", () => {

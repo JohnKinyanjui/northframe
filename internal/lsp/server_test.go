@@ -67,6 +67,22 @@ interface Props {
 	}
 }
 
+func TestDiagnosticsAllowMultilineServerDirectives(t *testing.T) {
+	diagnostics := validateDocument("file:///tmp/Card.north", `---
+interface Props {
+  Enabled bool
+  Items []string
+}
+---
+{if
+  !Props.Enabled}<span>Disabled</span>{/if}
+{for
+  item := range Props.Items}<span>{item}</span>{/for}`)
+	if len(diagnostics) != 0 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
 func TestDiagnosticsDoNotTreatGoImportPathAsQualifiedType(t *testing.T) {
 	diagnostics := validateDocument("file:///tmp/component.north", `---
 import uuid "github.com/google/uuid"

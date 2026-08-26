@@ -14,7 +14,10 @@ var (
 	styleBlock            = regexp.MustCompile(`(?s)<style\s*>(.*?)</style>`)
 	namedSlotTag          = regexp.MustCompile(`<slot\s+name=["']([A-Za-z_][A-Za-z0-9_]*)["']\s*/?>`)
 	identifier            = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	forStart              = regexp.MustCompile(`^for\s+([a-z_][A-Za-z0-9_]*)\s*:=\s*range\s+(.+)$`)
+	ifStart               = regexp.MustCompile(`(?s)^if\s+(.+)$`)
+	forKeyword            = regexp.MustCompile(`^for\s`)
+	forStart              = regexp.MustCompile(`(?s)^for\s+([a-z_][A-Za-z0-9_]*)\s*:=\s*range\s+(.+)$`)
+	htmlStart             = regexp.MustCompile(`(?s)^html\s+(.+)$`)
 )
 
 const (

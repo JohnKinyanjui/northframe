@@ -61,8 +61,8 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 		if strings.HasPrefix(directive, "/") {
 			return nodes, position, strings.TrimPrefix(directive, "/"), nil
 		}
-		if strings.HasPrefix(directive, "if ") {
-			condition := strings.TrimSpace(strings.TrimPrefix(directive, "if"))
+		if match := ifStart.FindStringSubmatch(directive); match != nil {
+			condition := strings.TrimSpace(match[1])
 			if !validCondition(condition) {
 				return nil, open, "", fmt.Errorf("invalid if expression %q at byte %d", condition, open)
 			}
@@ -77,11 +77,7 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 			position = next
 			continue
 		}
-		if strings.HasPrefix(directive, "for ") {
-			match := forStart.FindStringSubmatch(directive)
-			if match == nil {
-				return nil, open, "", fmt.Errorf("invalid for expression %q at byte %d; use `{for item := range Props.Items}`", directive, open)
-			}
+		if match := forStart.FindStringSubmatch(directive); match != nil {
 			collection := strings.TrimSpace(match[2])
 			if !validExpression(collection) {
 				return nil, open, "", fmt.Errorf("invalid range expression %q at byte %d", collection, open)
@@ -97,8 +93,11 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 			position = next
 			continue
 		}
-		if strings.HasPrefix(directive, "html ") {
-			expression := strings.TrimSpace(strings.TrimPrefix(directive, "html"))
+		if forKeyword.MatchString(directive) {
+			return nil, open, "", fmt.Errorf("invalid for expression %q at byte %d; use `{for item := range Props.Items}`", directive, open)
+		}
+		if match := htmlStart.FindStringSubmatch(directive); match != nil {
+			expression := strings.TrimSpace(match[1])
 			if !validExpression(expression) {
 				return nil, open, "", fmt.Errorf("invalid html expression %q at byte %d", expression, open)
 			}
