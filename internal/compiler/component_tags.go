@@ -111,11 +111,11 @@ func parseComponentAttributes(source string) ([]componentAttribute, error) {
 			break
 		}
 		nameStart := position
-		for position < len(source) && (unicode.IsLetter(rune(source[position])) || unicode.IsDigit(rune(source[position])) || source[position] == '_') {
+		for position < len(source) && (unicode.IsLetter(rune(source[position])) || unicode.IsDigit(rune(source[position])) || source[position] == '_' || source[position] == '-') {
 			position++
 		}
 		name := source[nameStart:position]
-		if !identifier.MatchString(name) || !unicode.IsUpper(rune(name[0])) {
+		if !componentEventAttribute(name) && (!identifier.MatchString(name) || !unicode.IsUpper(rune(name[0]))) {
 			return nil, fmt.Errorf("invalid prop near %q; component props use exported Go field names", source[nameStart:])
 		}
 		if seen[name] {
@@ -187,4 +187,20 @@ func parseComponentAttributes(source string) ([]componentAttribute, error) {
 		attributes = append(attributes, attribute)
 	}
 	return attributes, nil
+}
+
+func componentEventAttribute(name string) bool {
+	if !strings.HasPrefix(name, "data-north-event-") {
+		return false
+	}
+	suffix := strings.TrimPrefix(name, "data-north-event-")
+	if suffix == "" {
+		return false
+	}
+	for _, current := range suffix {
+		if !unicode.IsLetter(current) && !unicode.IsDigit(current) && current != '-' {
+			return false
+		}
+	}
+	return true
 }

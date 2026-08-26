@@ -5,12 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"syscall"
-	"time"
 )
 
 func runserver(arguments []string) error {
@@ -30,16 +27,31 @@ func runserver(arguments []string) error {
 		return err
 	}
 	defer os.RemoveAll(temporary)
-	binary := filepath.Join(temporary, "app")
+
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(interrupts)
 
+	supervisor, err := newDevelopmentSupervisor(*port)
+	if err != nil {
+		return err
+	}
+	defer supervisor.Close()
+
+	var current *developmentChild
+	defer func() {
+		if current != nil {
+			current.Stop()
+		}
+	}()
+	buildNumber := 0
 	for {
 		baseline, err := watchSignature(*watchRoot, options.generated)
 		if err != nil {
 			return err
 		}
+		buildNumber++
+		binary := filepath.Join(temporary, fmt.Sprintf("app-%d", buildNumber))
 		if err := compileDevelopmentBuild(*options, binary); err != nil {
 			fmt.Fprintln(os.Stderr, "north:", err)
 			if waitErr := waitForChange(*watchRoot, options.generated, baseline, interrupts); waitErr != nil {
@@ -50,11 +62,44 @@ func runserver(arguments []string) error {
 			}
 			continue
 		}
-		if err := serveUntilChange(binary, *port, *watchRoot, options.generated, baseline, interrupts); err != nil {
+
+		next, err := startDevelopmentChild(binary)
+		if err != nil {
+			return err
+		}
+		if err := next.WaitReady(); err != nil {
+			next.Stop()
+			return err
+		}
+		if err := supervisor.Switch(next.URL()); err != nil {
+			next.Stop()
+			return err
+		}
+		previous := current
+		current = next
+		if previous == nil {
+			if err := supervisor.Start(); err != nil {
+				next.Stop()
+				current = nil
+				return err
+			}
+			fmt.Printf("North development server: http://localhost:%d\n", *port)
+			fmt.Println("Watching project files. Press Ctrl+C to stop.")
+		} else {
+			supervisor.ReloadBrowsers()
+			previous.Stop()
+			fmt.Println("Updated without restarting the public development server.")
+		}
+
+		changed, err := waitForDevelopmentChange(*watchRoot, options.generated, baseline, current, interrupts)
+		if err != nil {
 			if errors.Is(err, errInterrupted) {
 				return nil
 			}
 			return err
+		}
+		if changed {
+			fmt.Println("Change detected; rebuilding…")
 		}
 	}
 }
@@ -67,50 +112,4 @@ func compileDevelopmentBuild(options projectOptions, binary string) error {
 		return fmt.Errorf("build failed: %w", err)
 	}
 	return nil
-}
-
-func serveUntilChange(binary string, port int, root, generated, baseline string, interrupts <-chan os.Signal) error {
-	command := exec.Command(binary)
-	configureChildProcess(command)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	projectEnvironment, err := loadDotEnv(".env", os.Environ())
-	if err != nil {
-		return err
-	}
-	command.Env = setEnvironment(projectEnvironment, "PORT", strconv.Itoa(port))
-	command.Env = setEnvironment(command.Env, "NORTHFRAME_ENV", "development")
-	if err := command.Start(); err != nil {
-		return err
-	}
-	wait := make(chan error, 1)
-	go func() { wait <- command.Wait() }()
-	fmt.Printf("North development server: http://localhost:%d\n", port)
-	fmt.Println("Watching project files. Press Ctrl+C to stop.")
-
-	ticker := time.NewTicker(450 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-interrupts:
-			stopProcess(command, wait)
-			return errInterrupted
-		case processErr := <-wait:
-			if processErr == nil || processWasInterrupted(processErr) {
-				return errInterrupted
-			}
-			return fmt.Errorf("development server stopped: %w", processErr)
-		case <-ticker.C:
-			current, err := watchSignature(root, generated)
-			if err != nil {
-				stopProcess(command, wait)
-				return err
-			}
-			if current != baseline {
-				fmt.Println("Change detected; rebuilding…")
-				stopProcess(command, wait)
-				return nil
-			}
-		}
-	}
 }

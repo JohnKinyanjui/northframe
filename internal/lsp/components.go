@@ -14,12 +14,14 @@ var (
 	frontmatterPropsInterface = regexp.MustCompile(`(?ms)^[ \t]*interface[ \t]+Props[ \t]*\{[ \t]*\r?\n(.*?)^[ \t]*\}[ \t]*(?:\r?\n|\z)`)
 	legacyScriptPropsBlock    = regexp.MustCompile(`(?s)<script\s+context=["']props["']\s*>(.*?)</script>`)
 	legacyInterfacePropsBlock = regexp.MustCompile(`(?ms)^[ \t]*interface[ \t]+props[ \t]*\{[ \t]*\r?\n(.*?)^[ \t]*\}[ \t]*(?:\r?\n|$)`)
+	componentDispatch         = regexp.MustCompile(`\bdispatch\s*\(\s*["']([A-Za-z][A-Za-z0-9_-]*)["']`)
 )
 
 type projectComponent struct {
 	Name    string
 	Path    string
 	Props   []string
+	Events  []string
 	HasSlot bool
 }
 
@@ -43,7 +45,7 @@ func projectComponents(uri string) []projectComponent {
 		}
 		result = append(result, projectComponent{
 			Name: componentTypeName(strings.TrimSuffix(filepath.ToSlash(relative), ".north")),
-			Path: path, Props: componentPropNames(string(contents)), HasSlot: strings.Contains(string(contents), "<slot"),
+			Path: path, Props: componentPropNames(string(contents)), Events: componentEventNames(string(contents)), HasSlot: strings.Contains(string(contents), "<slot"),
 		})
 		return nil
 	})
@@ -83,6 +85,9 @@ func componentPropNames(source string) []string {
 	if !found {
 		return nil
 	}
+	if match := frontmatterPropsInterface.FindStringSubmatch(block); len(match) == 2 {
+		block = match[1]
+	}
 	var result []string
 	for _, raw := range strings.Split(block, "\n") {
 		line := strings.TrimSpace(raw)
@@ -90,10 +95,23 @@ func componentPropNames(source string) []string {
 			continue
 		}
 		parts := strings.Fields(line)
-		if len(parts) == 2 {
+		if len(parts) >= 2 {
 			result = append(result, parts[0])
 		}
 	}
+	return result
+}
+
+func componentEventNames(source string) []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, match := range componentDispatch.FindAllStringSubmatch(source, -1) {
+		if !seen[match[1]] {
+			seen[match[1]] = true
+			result = append(result, match[1])
+		}
+	}
+	sort.Strings(result)
 	return result
 }
 

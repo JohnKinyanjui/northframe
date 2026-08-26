@@ -98,6 +98,21 @@ Visible bool
 	}
 }
 
+func TestCompileDoesNotImportRuntimeForComparisonOnlyControlFlow(t *testing.T) {
+	generated, err := Compile("components", "provider_mark", []byte(`---
+interface Props {
+Kind string
+}
+---
+{if Props.Kind == "cash"}<span>Cash</span>{/if}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(generated), `"northframe.dev/northframe/pkg/web"`) {
+		t.Fatalf("comparison-only component imported unused runtime\n%s", generated)
+	}
+}
+
 func TestCompileSupportsGoExpressionsInServerBlocks(t *testing.T) {
 	source := []byte(`---
 interface Props {

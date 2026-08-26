@@ -22,10 +22,13 @@ func TestProjectComponentsDiscoversPropsAndSlots(t *testing.T) {
 	if err := os.WriteFile(component, []byte(`---
 interface Props {
 Name string
-Count int
+Count int = 0
 }
 ---
-<article><slot /></article>`), 0o644); err != nil {
+<script lang="ts">
+function finish(): void { dispatch("complete", { count: props.Count }); }
+</script>
+<article><slot /><button on:click={finish}>Done</button></article>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	components := projectComponents(documentURI(route))
@@ -34,5 +37,8 @@ Count int
 	}
 	if len(components[0].Props) != 2 || components[0].Props[0] != "Name" || components[0].Props[1] != "Count" {
 		t.Fatalf("props = %#v", components[0].Props)
+	}
+	if len(components[0].Events) != 1 || components[0].Events[0] != "complete" {
+		t.Fatalf("events = %#v", components[0].Events)
 	}
 }

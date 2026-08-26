@@ -16,6 +16,7 @@ type RouteBuild struct {
 	// the configured .generated directory.
 	RouteFiles map[string][]byte
 	RouteCount int
+	Warnings   []string
 }
 
 type routeView struct {
@@ -132,7 +133,7 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 		if err := validateComponentReferences(current.Name, current.Source, componentNames); err != nil {
 			return RouteBuild{}, err
 		}
-		generated, compileErr := Compile(packageName, current.Name, current.Source)
+		generated, compileErr := compileComponent(packageName, current.Name, current.Source, componentNames)
 		if compileErr != nil {
 			return RouteBuild{}, fmt.Errorf("compile component %s: %w", current.Name, compileErr)
 		}
@@ -164,7 +165,7 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 		if view.ClientModule != nil {
 			clientAssets = append(clientAssets, publicAsset{Path: view.ClientModule.Path, Content: view.ClientModule.Source, ContentType: "text/javascript; charset=utf-8"})
 		}
-		generated, compileErr := CompileRoute(packageName, view.Name, view.Source, view.PropsImportAlias, view.PropsImportPath, view.Kind)
+		generated, compileErr := compileRoute(packageName, view.Name, view.Source, view.PropsImportAlias, view.PropsImportPath, view.Kind, componentNames)
 		if compileErr != nil {
 			return RouteBuild{}, fmt.Errorf("compile %s %s: %w", view.Directory, view.Kind, compileErr)
 		}
@@ -176,13 +177,18 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 	if err != nil {
 		return RouteBuild{}, err
 	}
+	classIssues := UnsupportedClasses(styleSources, customCSS)
+	warnings := make([]string, 0, len(classIssues))
+	for _, issue := range classIssues {
+		warnings = append(warnings, fmt.Sprintf("unsupported utility class %q; define it in colocated CSS or use a supported Tailwind utility", issue.Name))
+	}
 	router, err := generateRouter(packageName, pages, layouts, apiRoutes, BuildStyles(styleSources, customCSS), assets, clientAssets)
 	if err != nil {
 		return RouteBuild{}, err
 	}
 	files["router_generated.go"] = router
 	files["northframe_contracts_generated.ts"] = buildContracts(components, views)
-	return RouteBuild{Files: files, RouteFiles: map[string][]byte{}, RouteCount: len(pages) + apiMethodCount(apiRoutes)}, nil
+	return RouteBuild{Files: files, RouteFiles: map[string][]byte{}, RouteCount: len(pages) + apiMethodCount(apiRoutes), Warnings: warnings}, nil
 }
 
 func defaultGeneratedImportRoot(routeImportRoot string) string {

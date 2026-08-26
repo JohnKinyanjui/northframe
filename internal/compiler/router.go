@@ -110,6 +110,17 @@ func writeRouteRegistration(output *bytes.Buffer, pages []routeView, apiRoutes [
 			}
 			fmt.Fprintf(output, "\tapp.HandleAPI(%q, %q, %s.%s, %s...)\n", method, route.Path, route.ImportAlias, method, middleware)
 		}
+		if route.HasWebSocket {
+			options := "web.SocketOptions{}"
+			if route.HasSocketOptions {
+				options = route.ImportAlias + ".WebSocketOptions()"
+			}
+			if middleware == "nil" {
+				fmt.Fprintf(output, "\tapp.WebSocket(%q, %s, %s.WEBSOCKET)\n", route.Path, options, route.ImportAlias)
+			} else {
+				fmt.Fprintf(output, "\tapp.WebSocket(%q, %s, %s.WEBSOCKET, %s...)\n", route.Path, options, route.ImportAlias, middleware)
+			}
+		}
 	}
 	output.WriteString("}\n\n")
 }

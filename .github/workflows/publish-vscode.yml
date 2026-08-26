@@ -1,0 +1,47 @@
+name: Publish VS Code extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: First approved MVP semantic version (never 0.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node -e 'const v=process.env.RELEASE_VERSION;if(!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(v)||v==="0.0.0")process.exit(1)'
+      - name: Test extension
+        working-directory: lsp/vscode
+        run: npm test && npm run check
+      - name: Set approved version
+        working-directory: lsp/vscode
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version
+      - name: Package extension
+        working-directory: lsp/vscode
+        run: npx --yes @vscode/vsce package
+      - name: Publish to Visual Studio Marketplace
+        working-directory: lsp/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --yes @vscode/vsce publish -p "$VSCE_PAT"
+      - name: Publish to Open VSX
+        working-directory: lsp/vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --yes ovsx publish -p "$OVSX_PAT"

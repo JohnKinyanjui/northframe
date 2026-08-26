@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"go/parser"
 	pathpkg "path"
 	"strconv"
 	"strings"
@@ -23,11 +24,23 @@ func parseProps(block string) ([]prop, []componentImport, error) {
 			imports = append(imports, parsed)
 			continue
 		}
-		parts := strings.Fields(line)
+		declaration, defaultValue, hasDefault := strings.Cut(line, "=")
+		parts := strings.Fields(strings.TrimSpace(declaration))
 		if len(parts) != 2 || !identifier.MatchString(parts[0]) {
-			return nil, nil, fmt.Errorf("invalid prop declaration on line %d: use `Name type`", lineNumber+1)
+			return nil, nil, fmt.Errorf("invalid prop declaration on line %d: use `Name type` or `Name type = value`", lineNumber+1)
 		}
-		props = append(props, prop{Name: parts[0], Type: parts[1]})
+		field := prop{Name: parts[0], Type: parts[1]}
+		if hasDefault {
+			field.Default = strings.TrimSpace(defaultValue)
+			if field.Default == "" {
+				return nil, nil, fmt.Errorf("prop %s has an empty default on line %d", field.Name, lineNumber+1)
+			}
+			if _, err := parser.ParseExpr(field.Default); err != nil {
+				return nil, nil, fmt.Errorf("prop %s has invalid Go default %q on line %d", field.Name, field.Default, lineNumber+1)
+			}
+			field.HasDefault = true
+		}
+		props = append(props, field)
 	}
 	return props, imports, nil
 }

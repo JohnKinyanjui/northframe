@@ -12,6 +12,7 @@ import (
 )
 
 var bytePosition = regexp.MustCompile(`byte ([0-9]+)`)
+var serverHTMLExpression = regexp.MustCompile(`\{html\s+([^}]+)\}`)
 
 func (current *server) publishDiagnostics(uri, text string) error {
 	diagnostics := validateDocument(uri, text)
@@ -32,6 +33,15 @@ func validateDocument(uri, text string) []diagnostic {
 		})
 	}
 	diagnostics = append(diagnostics, propsTypeDiagnostics(uri, text)...)
+	diagnostics = append(diagnostics, htmlTypeDiagnostics(uri, text)...)
+	for _, issue := range compiler.UnsupportedClasses([][]byte{[]byte(text)}, nil) {
+		start := byteOffsetToPosition(text, issue.Offset)
+		diagnostics = append(diagnostics, diagnostic{
+			Range:    protocolRange{Start: start, End: byteOffsetToPosition(text, issue.Offset+len(issue.Name))},
+			Severity: 2, Source: "northframe",
+			Message: fmt.Sprintf("unsupported utility class %q; define it in <style> or use a supported Tailwind utility", issue.Name),
+		})
+	}
 	path := documentPath(uri)
 	base := filepath.Base(path)
 	if base == "layout.north" && !strings.Contains(text, "<slot />") && !strings.Contains(text, "<slot/>") {
@@ -49,6 +59,28 @@ func validateDocument(uri, text string) []diagnostic {
 				Message: fmt.Sprintf("missing typed sidecar %s", filepath.Base(sidecar)),
 			})
 		}
+	}
+	return diagnostics
+}
+
+func htmlTypeDiagnostics(uri, text string) []diagnostic {
+	var diagnostics []diagnostic
+	for _, match := range serverHTMLExpression.FindAllStringSubmatchIndex(text, -1) {
+		expressionStart := match[2]
+		expressionEnd := match[3]
+		value, ok := templateValueAt(uri, text, expressionStart)
+		if !ok || value.Type == "web.SafeHTML" {
+			continue
+		}
+		diagnostics = append(diagnostics, diagnostic{
+			Range: protocolRange{
+				Start: byteOffsetToPosition(text, expressionStart),
+				End:   byteOffsetToPosition(text, expressionEnd),
+			},
+			Severity: 1,
+			Source:   "northframe",
+			Message:  fmt.Sprintf("{html ...} requires web.SafeHTML, but %s has type %s; sanitize the value and wrap it with web.SafeHTMLFromSanitized", value.Name, value.Type),
+		})
 	}
 	return diagnostics
 }

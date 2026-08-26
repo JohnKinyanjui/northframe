@@ -59,6 +59,10 @@ func (current *server) handle(message request) error {
 		return current.completion(message.ID, message.Params)
 	case "textDocument/definition":
 		return current.definition(message.ID, message.Params)
+	case "textDocument/prepareRename":
+		return current.prepareRename(message.ID, message.Params)
+	case "textDocument/rename":
+		return current.rename(message.ID, message.Params)
 	case "textDocument/documentSymbol":
 		return current.documentSymbols(message.ID, message.Params)
 	case "textDocument/formatting":
@@ -80,6 +84,7 @@ func initializeResult() map[string]any {
 			"textDocumentSync":           1,
 			"hoverProvider":              true,
 			"definitionProvider":         true,
+			"renameProvider":             map[string]any{"prepareProvider": true},
 			"documentSymbolProvider":     true,
 			"documentFormattingProvider": true,
 			"completionProvider": map[string]any{

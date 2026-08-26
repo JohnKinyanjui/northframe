@@ -178,6 +178,19 @@
           "patterns": [{ "include": "source.go" }]
         },
         {
+          "begin": "(\\{)(html)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.northframe" },
+            "2": { "name": "keyword.other.northframe" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" }
+          },
+          "contentName": "source.go",
+          "patterns": [{ "include": "source.go" }]
+        },
+        {
           "match": "(\\{#)(include)(\\s+)([A-Za-z0-9_./-]+)(\\})",
           "captures": {
             "1": { "name": "punctuation.section.embedded.begin.northframe" },

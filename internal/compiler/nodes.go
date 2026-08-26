@@ -46,6 +46,14 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 		close := open + closeOffset + 1
 		directive := strings.TrimSpace(source[open+1 : close])
 		position = close + 1
+		if strings.HasPrefix(directive, "__north_slot ") {
+			name := strings.TrimSpace(strings.TrimPrefix(directive, "__north_slot"))
+			if !identifier.MatchString(name) {
+				return nil, open, "", fmt.Errorf("invalid named slot %q at byte %d", name, open)
+			}
+			nodes = append(nodes, slotNode{Name: name})
+			continue
+		}
 		if strings.HasPrefix(directive, "#if ") || strings.HasPrefix(directive, "#each ") {
 			return nil, open, "", fmt.Errorf("Svelte-style server blocks are no longer supported at byte %d; use `{if Props.Condition}` or `{for item := range Props.Items}`", open)
 		}
@@ -87,6 +95,14 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 			}
 			nodes = append(nodes, eachNode{Collection: collection, Item: match[1], Children: children})
 			position = next
+			continue
+		}
+		if strings.HasPrefix(directive, "html ") {
+			expression := strings.TrimSpace(strings.TrimPrefix(directive, "html"))
+			if !validExpression(expression) {
+				return nil, open, "", fmt.Errorf("invalid html expression %q at byte %d", expression, open)
+			}
+			nodes = append(nodes, htmlNode{Expression: expression})
 			continue
 		}
 		if !validExpression(directive) {

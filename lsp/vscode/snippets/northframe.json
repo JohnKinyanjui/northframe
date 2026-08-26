@@ -44,6 +44,13 @@
     ],
     "description": "Range over a typed Go collection during SSR"
   },
+  "Sanitized server HTML": {
+    "prefix": "nf-html",
+    "body": [
+      "{html Props.${1:ContentHTML}}"
+    ],
+    "description": "Render an explicitly sanitized web.SafeHTML value"
+  },
   "Enhanced form": {
     "prefix": "nf-form",
     "body": [
@@ -56,5 +63,12 @@
       "</form>"
     ],
     "description": "Add a progressively enhanced form"
+  },
+  "Component event": {
+    "prefix": "nf-dispatch",
+    "body": [
+      "dispatch(\"${1:event}\", ${2:detail});"
+    ],
+    "description": "Emit a bubbling typed event from an independent component"
   }
 }

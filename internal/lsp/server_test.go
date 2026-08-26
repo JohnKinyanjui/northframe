@@ -20,7 +20,7 @@ func TestInitializeAdvertisesLanguageFeatures(t *testing.T) {
 	message := decodeFirstFrame(t, output.String())
 	result := message["result"].(map[string]any)
 	capabilities := result["capabilities"].(map[string]any)
-	if capabilities["definitionProvider"] != true || capabilities["documentFormattingProvider"] != true {
+	if capabilities["definitionProvider"] != true || capabilities["documentFormattingProvider"] != true || capabilities["renameProvider"] == nil {
 		t.Fatalf("unexpected capabilities: %#v", capabilities)
 	}
 }
@@ -32,6 +32,22 @@ func TestDiagnosticsUseCompilerParser(t *testing.T) {
 	}
 	if diagnostics[0].Range.Start.Character != 4 {
 		t.Fatalf("diagnostic starts at %#v, want character 4", diagnostics[0].Range.Start)
+	}
+}
+
+func TestDiagnosticsWarnForUnsupportedUtilityClass(t *testing.T) {
+	diagnostics := validateDocument("file:///tmp/Card.north", `<div class="flex definitely-not-tailwind"></div>`)
+	found := false
+	for _, current := range diagnostics {
+		if strings.Contains(current.Message, `unsupported utility class "definitely-not-tailwind"`) {
+			found = true
+			if current.Severity != 2 {
+				t.Fatalf("severity = %d, want warning", current.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("diagnostics = %#v", diagnostics)
 	}
 }
 
@@ -188,6 +204,34 @@ interface Props {
 	}
 }
 
+func TestHTMLDirectiveDiagnosticsRequireSafeHTML(t *testing.T) {
+	root := t.TempDir()
+	writeImportTestFile(t, filepath.Join(root, "go.mod"), "module example.test/store\n\ngo 1.27\n")
+	writeImportTestFile(t, filepath.Join(root, "internal", "viewmodels", "models.go"), `package viewmodels
+import "northframe.dev/northframe/pkg/web"
+type Article struct {
+	Content string
+	ContentHTML web.SafeHTML
+}
+`)
+	templatePath := filepath.Join(root, "web", "components", "article.north")
+	template := `---
+import viewmodels "example.test/store/internal/viewmodels"
+interface Props {
+  Articles []viewmodels.Article
+}
+---
+{for item := range Props.Articles}
+  <div>{html item.ContentHTML}</div>
+  <div>{html item.Content}</div>
+{/for}`
+	writeImportTestFile(t, templatePath, template)
+	diagnostics := htmlTypeDiagnostics(documentURI(templatePath), template)
+	if len(diagnostics) != 1 || !strings.Contains(diagnostics[0].Message, "requires web.SafeHTML") || !strings.Contains(diagnostics[0].Message, "type string") {
+		t.Fatalf("html diagnostics = %#v", diagnostics)
+	}
+}
+
 func TestFormatDocument(t *testing.T) {
 	got := formatDocument("<main>  \n<slot/>\n\n")
 	if got != "<main>\n<slot />\n" {
@@ -205,8 +249,10 @@ func TestHoverHelpExplainsNorthframeSyntaxAtCursor(t *testing.T) {
 		{"props contract", "---\ninterface Props {\nTitle string\n}\n---", "Props", "Typed server Props"},
 		{"typescript", `<script lang="ts">`, "ts", "Browser TypeScript"},
 		{"server loop", `{for item := range Props.Items}`, "for", "Go server loop"},
+		{"sanitized html", `{html Props.ContentHTML}`, "html", "Sanitized server HTML"},
 		{"client state", `<p>{#name}</p>`, "name", "Client expression"},
 		{"pending form", `<span nf-loading hidden>Saving</span>`, "nf-loading", "Pending state"},
+		{"component dispatch", `function done() { dispatch("complete", { id: 1 }); }`, "dispatch", "Component event dispatch"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -27,9 +27,12 @@ test("Astro-style Props frontmatter has dedicated Northframe scopes", () => {
 test("Go server directives embed Go grammar", () => {
   const loop = grammar.repository["server-blocks"].patterns.find((pattern) => pattern.begin?.includes("(for)"));
   const condition = grammar.repository["server-blocks"].patterns.find((pattern) => pattern.begin?.includes("(if)"));
+  const html = grammar.repository["server-blocks"].patterns.find((pattern) => pattern.begin?.includes("(html)"));
   assert.equal(loop.contentName, "source.go");
   assert.equal(loop.patterns[0].include, "source.go");
   assert.equal(condition.contentName, "source.go");
+  assert.equal(html.contentName, "source.go");
+  assert.equal(html.patterns[0].include, "source.go");
 
   const component = grammar.repository.components.patterns[0];
   assert.equal(component.match.startsWith("(</?)"), true);

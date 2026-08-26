@@ -12,6 +12,7 @@ var (
 	frontmatterPropsType  = regexp.MustCompile(`(?ms)^[ \t]*interface[ \t]+Props[ \t]*\{[ \t]*\r?\n(.*?)^[ \t]*\}[ \t]*(?:\r?\n|\z)`)
 	interfacePropsBlock   = regexp.MustCompile(`(?ms)^[ \t]*interface[ \t]+props[ \t]*\{[ \t]*\r?\n(.*?)^[ \t]*\}[ \t]*(?:\r?\n|$)`)
 	styleBlock            = regexp.MustCompile(`(?s)<style\s*>(.*?)</style>`)
+	namedSlotTag          = regexp.MustCompile(`<slot\s+name=["']([A-Za-z_][A-Za-z0-9_]*)["']\s*/?>`)
 	identifier            = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	forStart              = regexp.MustCompile(`^for\s+([a-z_][A-Za-z0-9_]*)\s*:=\s*range\s+(.+)$`)
 )
@@ -25,6 +26,7 @@ const (
 
 func parseComponent(name, source string) (component, error) {
 	result := component{Name: name}
+	source = namedSlotTag.ReplaceAllString(source, `{__north_slot $1}`)
 	source = strings.ReplaceAll(source, "<slot />", slotSentinel)
 	source = strings.ReplaceAll(source, "<slot/>", slotSentinel)
 

@@ -14,8 +14,10 @@ type componentImport struct {
 }
 
 type prop struct {
-	Name string
-	Type string
+	Name       string
+	Type       string
+	Default    string
+	HasDefault bool
 }
 
 type node interface {
@@ -24,8 +26,9 @@ type node interface {
 
 type textNode struct{ Value string }
 type exprNode struct{ Expression string }
+type htmlNode struct{ Expression string }
 type styleNode struct{ Value string }
-type slotNode struct{}
+type slotNode struct{ Name string }
 type propsNode struct{}
 type ifNode struct {
 	Condition string
@@ -51,6 +54,7 @@ type eachNode struct {
 
 func (textNode) node()      {}
 func (exprNode) node()      {}
+func (htmlNode) node()      {}
 func (styleNode) node()     {}
 func (slotNode) node()      {}
 func (propsNode) node()     {}

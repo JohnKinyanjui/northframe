@@ -146,6 +146,73 @@ func DELETE(ctx *web.Context) error { return ctx.NoContent() }
 	}
 }
 
+func TestBuildProjectDiscoversAPIWebSocketHandler(t *testing.T) {
+	appRoot := t.TempDir()
+	routes := filepath.Join(appRoot, "routes")
+	api := filepath.Join(routes, "api")
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
+	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(api, "events", "route.go"), `package events
+import "northframe.dev/northframe/pkg/web"
+func WEBSOCKET(ctx *web.Context, socket *web.Socket) error { return nil }
+func WebSocketOptions() web.SocketOptions { return web.SocketOptions{ReadLimit: 4096} }
+func Middleware() []web.Middleware { return nil }
+`)
+
+	build, err := BuildProject(routes, api, "routesgen", "example.test/app/routes", "example.test/app/routes/api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if build.RouteCount != 2 {
+		t.Fatalf("RouteCount = %d, want one page and one WebSocket", build.RouteCount)
+	}
+	router := string(build.Files["router_generated.go"])
+	expected := `app.WebSocket("/api/events", apiEvents.WebSocketOptions(), apiEvents.WEBSOCKET, apiEventsMiddleware...)`
+	if !strings.Contains(router, expected) {
+		t.Fatalf("generated API router does not contain %q\n%s", expected, router)
+	}
+}
+
+func TestBuildProjectRejectsConflictingGETAndWebSocket(t *testing.T) {
+	appRoot := t.TempDir()
+	routes := filepath.Join(appRoot, "routes")
+	api := filepath.Join(routes, "api")
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
+	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(api, "events", "route.go"), `package events
+import "northframe.dev/northframe/pkg/web"
+func GET(ctx *web.Context) error { return nil }
+func WEBSOCKET(ctx *web.Context, socket *web.Socket) error { return nil }
+`)
+
+	_, err := BuildProject(routes, api, "routesgen", "example.test/app/routes", "example.test/app/routes/api")
+	if err == nil || !strings.Contains(err.Error(), "cannot declare both GET and WEBSOCKET") {
+		t.Fatalf("BuildProject error = %v", err)
+	}
+}
+
+func TestBuildProjectRejectsInvalidWebSocketSignature(t *testing.T) {
+	appRoot := t.TempDir()
+	routes := filepath.Join(appRoot, "routes")
+	api := filepath.Join(routes, "api")
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
+	writeRouteTestFile(t, filepath.Join(routes, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
+	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(api, "events", "route.go"), `package events
+func WEBSOCKET() error { return nil }
+`)
+
+	_, err := BuildProject(routes, api, "routesgen", "example.test/app/routes", "example.test/app/routes/api")
+	if err == nil || !strings.Contains(err.Error(), "func WEBSOCKET(*web.Context, *web.Socket) error") {
+		t.Fatalf("BuildProject error = %v", err)
+	}
+}
+
 func TestBuildProjectRejectsInvalidAPIHandlerSignature(t *testing.T) {
 	appRoot := t.TempDir()
 	routes := filepath.Join(appRoot, "routes")

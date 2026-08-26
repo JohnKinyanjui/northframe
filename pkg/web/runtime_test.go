@@ -15,6 +15,17 @@ func TestWriteEscaped(t *testing.T) {
 	}
 }
 
+func TestWriteHTMLRequiresExplicitSafeValue(t *testing.T) {
+	var output bytes.Buffer
+	value := SafeHTMLFromSanitized(`<p><strong>Safe</strong></p>`)
+	if err := WriteHTML(&output, value); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := output.String(), `<p><strong>Safe</strong></p>`; got != want {
+		t.Fatalf("WriteHTML() = %q, want %q", got, want)
+	}
+}
+
 func TestTruthy(t *testing.T) {
 	for _, test := range []struct {
 		name  string

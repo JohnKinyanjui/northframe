@@ -74,6 +74,10 @@ class NorthframeController {
       vscode.languages.registerHoverProvider(selector, { provideHover: (document, position) => this.hover(document, position) }),
       vscode.languages.registerCompletionItemProvider(selector, { provideCompletionItems: (document, position, _token, completionContext) => this.completions(document, position, completionContext) }, "{", ".", "<", "\"", "'", "/"),
       vscode.languages.registerDefinitionProvider(selector, { provideDefinition: (document, position) => this.definition(document, position) }),
+      vscode.languages.registerRenameProvider(selector, {
+        prepareRename: (document, position) => this.prepareRename(document, position),
+        provideRenameEdits: (document, position, newName) => this.rename(document, position, newName),
+      }),
       vscode.languages.registerDocumentSymbolProvider(selector, { provideDocumentSymbols: (document) => this.symbols(document) }),
       vscode.languages.registerDocumentFormattingEditProvider(selector, { provideDocumentFormattingEdits: (document, options) => this.format(document, options) }),
     );
@@ -250,6 +254,23 @@ class NorthframeController {
     if (!result) return undefined;
     const locations = Array.isArray(result) ? result : [result];
     return locations.map((location) => new vscode.Location(vscode.Uri.parse(location.uri), toRange(location.range)));
+  }
+
+  async prepareRename(document, position) {
+    const result = await this.request("textDocument/prepareRename", document, position);
+    if (!result?.range) throw new Error("This Northframe symbol cannot be renamed here.");
+    return { range: toRange(result.range), placeholder: result.placeholder };
+  }
+
+  async rename(document, position, newName) {
+    const result = await this.request("textDocument/rename", document, position, { newName });
+    if (!result?.changes) return undefined;
+    const edit = new vscode.WorkspaceEdit();
+    for (const [rawURI, changes] of Object.entries(result.changes)) {
+      const uri = vscode.Uri.parse(rawURI);
+      for (const change of changes || []) edit.replace(uri, toRange(change.range), change.newText);
+    }
+    return edit;
   }
 
   async symbols(document) {

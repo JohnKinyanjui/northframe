@@ -4,6 +4,14 @@
   "description": "Language support for Northframe .north SSR components.",
   "version": "0.0.0",
   "publisher": "northframe",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JohnKinyanjui/northframe.git"
+  },
+  "homepage": "https://github.com/JohnKinyanjui/northframe#readme",
+  "bugs": {
+    "url": "https://github.com/JohnKinyanjui/northframe/issues"
+  },
   "icon": "icon.png",
   "license": "MIT",
   "engines": {

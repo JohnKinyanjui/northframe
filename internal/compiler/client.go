@@ -302,6 +302,7 @@ func buildClientModule(imports, typeScript string, bindings []clientBinding, eve
 	} else {
 		output.WriteString("const root = document;\n")
 	}
+	output.WriteString("const dispatch = <T = unknown>(type: string, detail?: T): boolean => root.dispatchEvent(new CustomEvent<T>(type, { detail, bubbles: true }));\n")
 	fmt.Fprintf(&output, "const props = readProps(root, %s) as %s;\n", strconv.Quote(prefix), propsType)
 	output.WriteString(typeScript)
 	output.WriteString("\nmountComponent({\n  bindings: [\n")

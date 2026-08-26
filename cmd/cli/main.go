@@ -43,6 +43,8 @@ func run(arguments []string) error {
 		return updateDependencies(arguments[2:])
 	case "upgrade":
 		return upgrade(arguments[2:])
+	case "deploy":
+		return deploy(arguments[2:])
 	case "lsp":
 		return lsp.Run(os.Stdin, os.Stdout)
 	case "help", "-h", "--help":
@@ -77,5 +79,7 @@ usage:
   north remove NAME  remove a browser JavaScript dependency
   north update       resolve and reinstall locked JavaScript dependencies
   north upgrade      safely refresh Northframe-managed generated files
+  north deploy check compile and validate a production executable
+  north deploy docker print or write a production Dockerfile
   north lsp          run the .north language server over stdio`)
 }

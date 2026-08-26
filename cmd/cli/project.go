@@ -44,6 +44,9 @@ func generateProject(options projectOptions) (int, error) {
 	if err := writeGeneratedFiles(options.generated, build.Files); err != nil {
 		return 0, err
 	}
+	for _, warning := range build.Warnings {
+		fmt.Fprintln(os.Stderr, "north: warning:", warning)
+	}
 	return build.RouteCount, nil
 }
 

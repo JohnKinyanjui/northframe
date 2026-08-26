@@ -1,0 +1,61 @@
+name: MVP gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          cache: true
+      - run: go test ./...
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - run: go test ./internal/compiler -run '^$' -bench . -benchtime=200ms -benchmem
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm test && npm run check
+        working-directory: lsp/vscode
+      - name: Package unreleased VS Code extension
+        working-directory: lsp/vscode
+        run: npx --yes @vscode/vsce package --out northframe-0.0.0.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: northframe-vscode-unreleased
+          path: lsp/vscode/northframe-0.0.0.vsix
+          if-no-files-found: error
+
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          cache: true
+      - run: go build ./...
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'

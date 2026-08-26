@@ -8,6 +8,7 @@
 *.vsix
 coverage.out
 *.test
+examples/*/app
 .DS_Store
 *.db
 *.db-shm

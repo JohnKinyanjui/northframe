@@ -10,6 +10,8 @@
 
 Northframe is an experimental Laravel/Django-style framework for native Go SSR. It compiles structured `.north` views into a small generated Go layer, generates routes from the filesystem, embeds its browser runtime and CSS, and deploys as one executable.
 
+The project is deliberately unversioned while the [MVP compatibility contract](COMPATIBILITY.md) is being proven. `0.0.0` on local editor packages means unreleased candidate, not a published release.
+
 Applications do not need Node, Deno, npm, `package.json`, Svelte, or a JavaScript server runtime.
 
 ## Requirements
@@ -43,6 +45,8 @@ north lsp
 ```
 
 `north run` loads `.env`, compiles the application, and watches `.go`, `.north`, `.css`, `.env`, and public assets. Values already exported by the shell take precedence over `.env`.
+
+The development command owns a stable public listener for the entire session. Each successful rebuild starts the new application on a private loopback port, waits until it accepts connections, atomically switches the public listener, and only then shuts down the previous child. The browser reload WebSocket belongs to the stable supervisor, so port 8000 never disappears during a rebuild. A failed compile leaves the last good application running, and Ctrl+C gracefully stops both the current child and the supervisor.
 
 `north create .` safely scaffolds the current directory. It preserves unrelated directories, performs a complete conflict preflight before writing, and refuses to overwrite an existing application file.
 
@@ -182,6 +186,8 @@ http.ListenAndServe(":8080", app)
 ```
 
 Northframe emits `PageProps` into the matching `.generated/routes/<route>/props_generated.go`, and the renderer and loader compile against that same type. A renamed, missing, or incompatible field fails at `go build`. `{Props.Name}` is an HTML-escaped Go value. `{if Props.Condition}` and `{for item := range Props.Items}` become native Go control flow and accept Go expressions. Generated renderers are formatted with `gofmt`. Existing handwritten props structs remain supported during migration, but a route must use either the template contract or the handwritten struct—not both.
+
+Already-sanitized rich text uses `{html Props.ContentHTML}` and requires the concrete `web.SafeHTML` type. Northframe does not accept an ordinary string at this boundary: sanitize with an application allow-list first, then call `web.SafeHTMLFromSanitized(cleanHTML)`. This keeps normal interpolation escaped while supporting trusted CMS and editor output.
 
 ## Authentication, sessions, and permissions
 
@@ -393,6 +399,72 @@ safe JSON envelope, while internal error details remain server-only.
 WebSockets run on the same Northframe server and through the same middleware
 chain as pages and API routes. No proxy or second process is required:
 
+For convention-based endpoints, place the handler in the normal API tree:
+
+```go
+// web/routes/api/notifications/route.go
+package notifications
+
+import (
+    "time"
+
+    "northframe.dev/northframe/pkg/web"
+)
+
+func WebSocketOptions() web.SocketOptions {
+    return web.SocketOptions{
+        ReadLimit:      64 << 10,
+        ReadTimeout:    75 * time.Second,
+        WriteTimeout:   5 * time.Second,
+        MaxConnections: 1_000,
+    }
+}
+
+func WEBSOCKET(ctx *web.Context, socket *web.Socket) error {
+    for {
+        var message ClientMessage
+        if err := socket.ReadJSON(ctx.StdContext(), &message); err != nil {
+            return err
+        }
+        if err := socket.WriteJSON(ctx.StdContext(), handle(message)); err != nil {
+            return err
+        }
+    }
+}
+```
+
+This registers `/api/notifications`. `Middleware() []web.Middleware` in the
+same folder protects both HTTP and WebSocket handlers. A folder cannot expose
+both `GET` and `WEBSOCKET`, because both own the same HTTP upgrade path; put one
+of them in a child folder instead. `WebSocketOptions` is optional and defaults
+to same-origin verification with compression disabled.
+
+The client remains ordinary type-safe TypeScript—WebAssembly is not required:
+
+```html
+<script lang="ts">
+type InventoryRequest = { search: string };
+type InventoryResponse = { products: Array<{ sku: string; name: string }> };
+
+const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+const socket = new WebSocket(`${protocol}//${location.host}/api/products/live`);
+
+function send(message: InventoryRequest): void {
+    socket.send(JSON.stringify(message));
+}
+
+socket.addEventListener("message", (event) => {
+    const response = JSON.parse(String(event.data)) as InventoryResponse;
+    console.log(response.products);
+});
+</script>
+```
+
+The commerce example includes this exact PostgreSQL-backed endpoint at
+`web/routes/api/products/live/route.go`.
+
+For programmatic registration outside the route tree:
+
 ```go
 app.WebSocket("/ws/notifications", web.SocketOptions{
     OriginPatterns:   []string{"admin.example.com"}, // omit for same-origin only
@@ -420,8 +492,9 @@ app.WebSocket("/ws/notifications", web.SocketOptions{
 ```
 
 Same-origin verification is enabled by default. `OriginPatterns` explicitly
-allows trusted cross-origin browser clients; `InsecureSkipVerify` exists for
-non-browser development clients but should not be enabled in production.
+allows trusted cross-origin browser clients. `InsecureSkipOriginVerification`
+is an intentionally loud escape hatch for controlled non-browser development
+clients and must not be enabled in production.
 Route middleware runs before the upgrade, making it the right place to reject
 unauthenticated connections with a normal HTTP response.
 
@@ -548,6 +621,27 @@ Use it from a page, layout, or another component:
 
 Northframe generates `PanelProps`, `RenderPanel`, and a TypeScript `PanelProps` contract. Go compilation checks prop values, child markup becomes a native `web.Fragment`, and every rendered instance gets an isolated browser-state scope. Missing or unknown props, unknown components, and child content passed to a component without `<slot />` are compiler errors. The earlier `{#include path}` syntax remains available for simple static source inclusion.
 
+Components can emit typed browser events without turning callbacks into Go props. The child calls the built-in `dispatch` helper; the parent listens on the component invocation. Events bubble through an isolated `display: contents` boundary, so normal DOM event semantics and TypeScript `CustomEvent<T>` typing apply:
+
+```html
+<!-- web/components/dialog.north -->
+<script lang="ts">
+function finish(): void {
+  dispatch("complete", { id: props.ID });
+}
+</script>
+<button on:click={finish}>Done</button>
+```
+
+```html
+<script lang="ts">
+function completed(event: CustomEvent<{ id: string }>): void {
+  console.log(event.detail.id);
+}
+</script>
+<Dialog ID={Props.ID} on:complete={completed} />
+```
+
 Everything below `web/public/` is embedded into the generated router and served from `/public/` with content types, immutable caching, and ETags. No files are required beside the production executable.
 
 ## Internal Tailwind-compatible utilities
@@ -658,6 +752,8 @@ cd examples/calculator
 north build -o ./northframe-calculator
 ```
 
+Before shipping an application, `north deploy check` regenerates its protected output and proves the production executable can be built. `north deploy docker -output Dockerfile` creates a non-root multi-stage container definition with an `/api/health` probe. Structured request logging and trace correlation, cache adapters, SMTP mail, retrying jobs, and recurring schedules are documented in [Production operations](docs/production.md).
+
 ## Commerce example
 
 Commerce is the database-backed stress test. It exercises nested routes, independent typed components, isolated component state, Go-to-TypeScript contracts, PostgreSQL migrations and seed data, sqlc generation, SSR, searchable inventory, CSRF-protected actions, pending form UI, and a searchable Northframe comparison Q&A page.
@@ -681,11 +777,11 @@ Northframe is now a useful framework prototype, but it is not production-complet
   admin CRUD UI are available now)
 - full TypeScript semantic checking beyond Northframe's supported state subset
 - JavaScript-package CSS imports, Node built-ins, native addons, lifecycle scripts, and multi-version dependency graphs
-- named and multiple component slots, optional/default props, events passed between components, and component package distribution
+- component package distribution (named slots, typed default props, and bubbling component events are available now)
 - a filesystem `error.north` convention (custom generated error components are
   already supported through `SetErrorRenderer`)
 - streaming responses and advanced response metadata
 - a complete Tailwind-compatible utility surface, arbitrary values, and diagnostics
-- dedicated packaged editor extensions; the stdio LSP server is available now
-- production observability, caching, queues, mail, scheduled jobs, and deployment adapters
+- Marketplace/Open VSX publishing for the included VS Code extension
+- distributed adapters for Redis-compatible caches and durable external queues (the framework contracts, in-memory implementations, SMTP mail, structured logs/traces, schedules, and container deployment workflow are available now)
 # northframe

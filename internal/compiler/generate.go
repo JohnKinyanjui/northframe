@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -14,6 +15,10 @@ import (
 
 // Compile converts one Northframe component into a native Go SSR renderer.
 func Compile(packageName, componentName string, source []byte) ([]byte, error) {
+	return compileComponent(packageName, componentName, source, nil)
+}
+
+func compileComponent(packageName, componentName string, source []byte, definitions map[string]componentView) ([]byte, error) {
 	if !identifier.MatchString(packageName) {
 		return nil, fmt.Errorf("invalid package name %q", packageName)
 	}
@@ -38,12 +43,20 @@ func Compile(packageName, componentName string, source []byte) ([]byte, error) {
 	for _, field := range parsed.Props {
 		fmt.Fprintf(&output, "\t%s %s\n", field.Name, field.Type)
 	}
-	if nodesHaveSlot(parsed.Children) {
-		output.WriteString("\tContent web.Fragment `json:\"-\"`\n")
+	for _, slot := range nodesSlotNames(parsed.Children) {
+		output.WriteString("\t" + slotFieldName(slot) + " web.Fragment `json:\"-\"`\n")
 	}
 	output.WriteString("}\n\n")
+	for _, field := range parsed.Props {
+		if !field.HasDefault {
+			continue
+		}
+		fmt.Fprintf(&output, "func %s() %s {\n", componentDefaultFunction(parsed.Name, field.Name), field.Type)
+		fmt.Fprintf(&output, "\treturn %s\n", field.Default)
+		output.WriteString("}\n\n")
+	}
 	fmt.Fprintf(&output, "func Render%s(w io.Writer, props %sProps) error {\n", parsed.Name, parsed.Name)
-	writeNodes(&output, parsed.Children, map[string]bool{}, "props.Content", clientPrefix(parsed.Name))
+	writeNodes(&output, parsed.Children, map[string]bool{}, componentSlotExpressions(parsed.Children), clientPrefix(parsed.Name), definitions)
 	output.WriteString("\treturn nil\n}\n")
 
 	formatted, err := format.Source(output.Bytes())
@@ -56,6 +69,10 @@ func Compile(packageName, componentName string, source []byte) ([]byte, error) {
 // CompileRoute generates a renderer whose props are owned by the colocated
 // page.north.go or layout.north.go package.
 func CompileRoute(packageName, componentName string, source []byte, routeAlias, routeImport, kind string) ([]byte, error) {
+	return compileRoute(packageName, componentName, source, routeAlias, routeImport, kind, nil)
+}
+
+func compileRoute(packageName, componentName string, source []byte, routeAlias, routeImport, kind string, definitions map[string]componentView) ([]byte, error) {
 	if !identifier.MatchString(packageName) || !identifier.MatchString(routeAlias) {
 		return nil, fmt.Errorf("invalid generated package or route alias")
 	}
@@ -82,13 +99,13 @@ func CompileRoute(packageName, componentName string, source []byte, routeAlias, 
 	fmt.Fprintf(&output, "\t%s %s\n", routeAlias, strconv.Quote(routeImport))
 	output.WriteString(")\n\n")
 	fmt.Fprintf(&output, "func Render%s(w io.Writer, props %s.%s", parsed.Name, routeAlias, propsType)
-	slotExpression := ""
+	slotExpressions := map[string]string{}
 	if kind == "layout" {
 		output.WriteString(", content web.Fragment")
-		slotExpression = "content"
+		slotExpressions[""] = "content"
 	}
 	output.WriteString(") error {\n")
-	writeNodes(&output, parsed.Children, map[string]bool{}, slotExpression, clientPrefix(parsed.Name))
+	writeNodes(&output, parsed.Children, map[string]bool{}, slotExpressions, clientPrefix(parsed.Name), definitions)
 	output.WriteString("\treturn nil\n}\n")
 
 	formatted, err := format.Source(output.Bytes())
@@ -101,8 +118,12 @@ func CompileRoute(packageName, componentName string, source []byte, routeAlias, 
 func nodesUseRuntime(nodes []node) bool {
 	for _, raw := range nodes {
 		switch current := raw.(type) {
-		case exprNode, ifNode, slotNode, propsNode:
+		case exprNode, htmlNode, slotNode, propsNode:
 			return true
+		case ifNode:
+			if conditionUsesTruthiness(current.Condition) || nodesUseRuntime(current.Children) {
+				return true
+			}
 		case eachNode:
 			if nodesUseRuntime(current.Children) {
 				return true
@@ -116,48 +137,100 @@ func nodesUseRuntime(nodes []node) bool {
 	return false
 }
 
-func writeNodes(output *bytes.Buffer, nodes []node, locals map[string]bool, slotExpression, propsMarker string) {
+func conditionUsesTruthiness(condition string) bool {
+	parsed, err := parser.ParseExpr(strings.TrimSpace(condition))
+	if err != nil {
+		return false
+	}
+	if unary, ok := parsed.(*ast.UnaryExpr); ok && unary.Op == token.NOT {
+		parsed = unary.X
+	}
+	switch parsed.(type) {
+	case *ast.Ident, *ast.SelectorExpr:
+		return true
+	default:
+		return false
+	}
+}
+
+func writeNodes(output *bytes.Buffer, nodes []node, locals map[string]bool, slotExpressions map[string]string, propsMarker string, definitions map[string]componentView) {
 	for _, raw := range nodes {
 		switch current := raw.(type) {
 		case textNode:
 			writeLiteral(output, current.Value)
 		case exprNode:
 			fmt.Fprintf(output, "\tif err := web.WriteEscaped(w, %s); err != nil { return err }\n", goExpression(current.Expression, locals))
+		case htmlNode:
+			fmt.Fprintf(output, "\tif err := web.WriteHTML(w, %s); err != nil { return err }\n", goExpression(current.Expression, locals))
 		case styleNode:
 			writeLiteral(output, "<style>"+current.Value+"</style>")
 		case slotNode:
-			if slotExpression != "" {
+			if slotExpression := slotExpressions[current.Name]; slotExpression != "" {
 				fmt.Fprintf(output, "\tif %s != nil { if err := %s(w); err != nil { return err } }\n", slotExpression, slotExpression)
 			}
 		case propsNode:
 			fmt.Fprintf(output, "\tif err := web.WriteClientProps(w, %s, props); err != nil { return err }\n", strconv.Quote(propsMarker))
 		case ifNode:
 			fmt.Fprintf(output, "\tif %s {\n", goCondition(current.Condition, locals))
-			writeNodes(output, current.Children, locals, slotExpression, propsMarker)
+			writeNodes(output, current.Children, locals, slotExpressions, propsMarker, definitions)
 			output.WriteString("\t}\n")
 		case eachNode:
 			fmt.Fprintf(output, "\tfor _, %s := range %s {\n", current.Item, goExpression(current.Collection, locals))
 			nested := cloneLocals(locals)
 			nested[current.Item] = true
-			writeNodes(output, current.Children, nested, slotExpression, propsMarker)
+			writeNodes(output, current.Children, nested, slotExpressions, propsMarker, definitions)
 			output.WriteString("\t}\n")
 		case componentNode:
-			writeComponentNode(output, current, locals, propsMarker)
+			writeComponentNode(output, current, locals, propsMarker, definitions)
 		}
 	}
 }
 
-func writeComponentNode(output *bytes.Buffer, current componentNode, locals map[string]bool, propsMarker string) {
-	fmt.Fprintf(output, "\tif err := Render%s(w, %sProps{\n", current.Name, current.Name)
+func writeComponentNode(output *bytes.Buffer, current componentNode, locals map[string]bool, propsMarker string, definitions map[string]componentView) {
+	eventAttributes := make([]string, 0)
 	for _, attribute := range current.Attributes {
+		if componentEventAttribute(attribute.Name) {
+			eventAttributes = append(eventAttributes, attribute.Name)
+		}
+	}
+	if len(eventAttributes) > 0 {
+		writeLiteral(output, `<north-event-scope style="display:contents" `+strings.Join(eventAttributes, " ")+`>`)
+	}
+	fmt.Fprintf(output, "\tif err := Render%s(w, %sProps{\n", current.Name, current.Name)
+	provided := make(map[string]bool, len(current.Attributes))
+	for _, attribute := range current.Attributes {
+		if componentEventAttribute(attribute.Name) {
+			continue
+		}
+		provided[attribute.Name] = true
 		fmt.Fprintf(output, "\t\t%s: %s,\n", attribute.Name, componentAttributeExpression(attribute, locals))
 	}
-	if len(current.Children) > 0 {
+	if definition, exists := definitions[current.Name]; exists {
+		for _, field := range definition.Props {
+			if field.HasDefault && !provided[field.Name] {
+				fmt.Fprintf(output, "\t\t%s: %s(),\n", field.Name, componentDefaultFunction(current.Name, field.Name))
+			}
+		}
+	}
+	defaultChildren, namedChildren := componentChildrenBySlot(current.Children)
+	if len(defaultChildren) > 0 {
 		output.WriteString("\t\tContent: func(w io.Writer) error {\n")
-		writeNodes(output, current.Children, locals, "", propsMarker)
+		writeNodes(output, defaultChildren, locals, nil, propsMarker, definitions)
+		output.WriteString("\t\t\treturn nil\n\t\t},\n")
+	}
+	for _, name := range sortedSlotKeys(namedChildren) {
+		fmt.Fprintf(output, "\t\t%s: func(w io.Writer) error {\n", slotFieldName(name))
+		writeNodes(output, namedChildren[name], locals, nil, propsMarker, definitions)
 		output.WriteString("\t\t\treturn nil\n\t\t},\n")
 	}
 	output.WriteString("\t}); err != nil { return err }\n")
+	if len(eventAttributes) > 0 {
+		writeLiteral(output, `</north-event-scope>`)
+	}
+}
+
+func componentDefaultFunction(componentName, propName string) string {
+	return "northDefault" + exportedName(componentName) + exportedName(propName)
 }
 
 func componentAttributeExpression(attribute componentAttribute, locals map[string]bool) string {
@@ -190,6 +263,69 @@ func nodesHaveSlot(nodes []node) bool {
 		}
 	}
 	return false
+}
+
+func nodesSlotNames(nodes []node) []string {
+	seen := map[string]bool{}
+	result := []string{}
+	var visit func([]node)
+	visit = func(items []node) {
+		for _, raw := range items {
+			switch current := raw.(type) {
+			case slotNode:
+				if !seen[current.Name] {
+					seen[current.Name] = true
+					result = append(result, current.Name)
+				}
+			case ifNode:
+				visit(current.Children)
+			case eachNode:
+				visit(current.Children)
+			}
+		}
+	}
+	visit(nodes)
+	return result
+}
+
+func componentSlotExpressions(nodes []node) map[string]string {
+	result := map[string]string{}
+	for _, name := range nodesSlotNames(nodes) {
+		result[name] = "props." + slotFieldName(name)
+	}
+	return result
+}
+
+func slotFieldName(name string) string {
+	if name == "" {
+		return "Content"
+	}
+	return "Slot" + exportedName(name)
+}
+
+func componentChildrenBySlot(children []node) ([]node, map[string][]node) {
+	defaults := []node{}
+	named := map[string][]node{}
+	for _, child := range children {
+		if fragment, ok := child.(componentNode); ok && fragment.Name == "Fragment" {
+			name, err := fragmentSlotName(fragment)
+			if err == nil {
+				named[name] = fragment.Children
+				continue
+			}
+		}
+		defaults = append(defaults, child)
+	}
+	return defaults, named
+}
+
+func sortedSlotKeys(slots map[string][]node) []string {
+	keys := make([]string, 0, len(slots))
+	for key := range slots {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func writeLiteral(output *bytes.Buffer, value string) {

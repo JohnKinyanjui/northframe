@@ -17,12 +17,14 @@ var apiMethods = map[string]bool{
 }
 
 type apiRoute struct {
-	Directory     string
-	Path          string
-	ImportPath    string
-	ImportAlias   string
-	Methods       []string
-	HasMiddleware bool
+	Directory        string
+	Path             string
+	ImportPath       string
+	ImportAlias      string
+	Methods          []string
+	HasMiddleware    bool
+	HasWebSocket     bool
+	HasSocketOptions bool
 }
 
 func discoverAPIRoutes(root, importRoot string) ([]apiRoute, error) {
@@ -81,6 +83,24 @@ func discoverAPIRoutes(root, importRoot string) ([]apiRoute, error) {
 				continue
 			}
 			name := function.Name.Name
+			if name == "WEBSOCKET" {
+				if !validAPIWebSocketSignature(function) {
+					return fmt.Errorf("%s func WEBSOCKET must have signature func WEBSOCKET(*web.Context, *web.Socket) error", path)
+				}
+				if current.HasWebSocket {
+					return fmt.Errorf("%s declares duplicate WEBSOCKET handler for %s", path, current.Path)
+				}
+				current.HasWebSocket = true
+			}
+			if name == "WebSocketOptions" {
+				if !validAPIWebSocketOptionsSignature(function) {
+					return fmt.Errorf("%s func WebSocketOptions must have signature func WebSocketOptions() web.SocketOptions", path)
+				}
+				if current.HasSocketOptions {
+					return fmt.Errorf("%s declares duplicate WebSocketOptions for %s", path, current.Path)
+				}
+				current.HasSocketOptions = true
+			}
 			if apiMethods[name] {
 				if !validAPIHandlerSignature(function) {
 					return fmt.Errorf("%s func %s must have signature func %s(*web.Context) error", path, name, name)
@@ -105,7 +125,13 @@ func discoverAPIRoutes(root, importRoot string) ([]apiRoute, error) {
 
 	routes := make([]apiRoute, 0, len(discovered))
 	for _, current := range discovered {
-		if len(current.Methods) == 0 {
+		if current.HasWebSocket && containsString(current.Methods, "GET") {
+			return nil, fmt.Errorf("API route %s cannot declare both GET and WEBSOCKET; place one endpoint in a child folder", current.Path)
+		}
+		if current.HasSocketOptions && !current.HasWebSocket {
+			return nil, fmt.Errorf("API route %s declares WebSocketOptions without WEBSOCKET", current.Path)
+		}
+		if len(current.Methods) == 0 && !current.HasWebSocket {
 			continue
 		}
 		sort.Strings(current.Methods)
@@ -146,6 +172,36 @@ func validAPIHandlerSignature(function *ast.FuncDecl) bool {
 	return selectorOK && selector.Sel.Name == "Context" && resultOK && result.Name == "error"
 }
 
+func validAPIWebSocketSignature(function *ast.FuncDecl) bool {
+	if function.Type.Params == nil || function.Type.Params.NumFields() != 2 || function.Type.Results == nil || function.Type.Results.NumFields() != 1 {
+		return false
+	}
+	contextParameter, contextOK := pointerSelectorName(function.Type.Params.List[0].Type)
+	socketParameter, socketOK := pointerSelectorName(function.Type.Params.List[1].Type)
+	result, resultOK := function.Type.Results.List[0].Type.(*ast.Ident)
+	return contextOK && contextParameter == "Context" && socketOK && socketParameter == "Socket" && resultOK && result.Name == "error"
+}
+
+func validAPIWebSocketOptionsSignature(function *ast.FuncDecl) bool {
+	if function.Type.Params != nil && function.Type.Params.NumFields() != 0 || function.Type.Results == nil || function.Type.Results.NumFields() != 1 {
+		return false
+	}
+	selector, ok := function.Type.Results.List[0].Type.(*ast.SelectorExpr)
+	return ok && selector.Sel.Name == "SocketOptions"
+}
+
+func pointerSelectorName(expression ast.Expr) (string, bool) {
+	pointer, ok := expression.(*ast.StarExpr)
+	if !ok {
+		return "", false
+	}
+	selector, ok := pointer.X.(*ast.SelectorExpr)
+	if !ok {
+		return "", false
+	}
+	return selector.Sel.Name, true
+}
+
 func validAPIMiddlewareSignature(function *ast.FuncDecl) bool {
 	if function.Type.Params != nil && function.Type.Params.NumFields() != 0 || function.Type.Results == nil || function.Type.Results.NumFields() != 1 {
 		return false
@@ -162,6 +218,9 @@ func apiMethodCount(routes []apiRoute) int {
 	count := 0
 	for _, route := range routes {
 		count += len(route.Methods)
+		if route.HasWebSocket {
+			count++
+		}
 	}
 	return count
 }

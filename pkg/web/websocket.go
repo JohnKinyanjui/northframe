@@ -29,6 +29,7 @@ const (
 	SocketStatusNormalClosure   SocketStatus = websocket.StatusNormalClosure
 	SocketStatusGoingAway       SocketStatus = websocket.StatusGoingAway
 	SocketStatusPolicyViolation SocketStatus = websocket.StatusPolicyViolation
+	SocketStatusMessageTooBig   SocketStatus = websocket.StatusMessageTooBig
 	SocketStatusInternalError   SocketStatus = websocket.StatusInternalError
 )
 
@@ -44,18 +45,18 @@ const (
 // SocketOptions configures a WebSocket endpoint. Same-origin requests are
 // accepted by default. Use OriginPatterns to explicitly allow other origins.
 type SocketOptions struct {
-	Subprotocols         []string
-	OriginPatterns       []string
-	InsecureSkipVerify   bool
-	Compression          SocketCompression
-	CompressionThreshold int
-	ReadLimit            int64
-	ReadTimeout          time.Duration
-	WriteTimeout         time.Duration
-	MaxConnections       int
-	OnPing               func(context.Context, []byte) bool
-	OnPong               func(context.Context, []byte)
-	OnError              func(*Context, error)
+	Subprotocols                   []string
+	OriginPatterns                 []string
+	InsecureSkipOriginVerification bool
+	Compression                    SocketCompression
+	CompressionThreshold           int
+	ReadLimit                      int64
+	ReadTimeout                    time.Duration
+	WriteTimeout                   time.Duration
+	MaxConnections                 int
+	OnPing                         func(context.Context, []byte) bool
+	OnPong                         func(context.Context, []byte)
+	OnError                        func(*Context, error)
 }
 
 // SocketHandler owns a WebSocket connection until it returns. Northframe
@@ -76,15 +77,9 @@ type Socket struct {
 // reverse proxy or second server. Global and route middleware run before the
 // upgrade, so authentication and permission checks work normally.
 func (app *App) WebSocket(pattern string, options SocketOptions, handler SocketHandler, middleware ...Middleware) {
-	pattern = strings.TrimSpace(pattern)
-	if pattern == "" {
-		panic("northframe: WebSocket pattern cannot be empty")
-	}
+	pattern = socketPattern(pattern)
 	if handler == nil {
 		panic("northframe: WebSocket handler cannot be nil")
-	}
-	if !strings.Contains(pattern, " ") {
-		pattern = http.MethodGet + " " + pattern
 	}
 
 	var capacity chan struct{}
@@ -106,7 +101,7 @@ func (app *App) WebSocket(pattern string, options SocketOptions, handler SocketH
 		connection, err := websocket.Accept(writer, request, &websocket.AcceptOptions{
 			Subprotocols:         options.Subprotocols,
 			OriginPatterns:       options.OriginPatterns,
-			InsecureSkipVerify:   options.InsecureSkipVerify,
+			InsecureSkipVerify:   options.InsecureSkipOriginVerification,
 			CompressionMode:      options.Compression,
 			CompressionThreshold: options.CompressionThreshold,
 			OnPingReceived:       options.OnPing,
@@ -131,7 +126,7 @@ func (app *App) WebSocket(pattern string, options SocketOptions, handler SocketH
 		defer app.sockets.remove(socket)
 		defer socket.CloseNow()
 
-		current := newContext(writer, request)
+		current := newContext(nil, request.WithContext(socketContext))
 		if err := runSocketHandler(current, socket, handler); err != nil && SocketCloseStatus(err) == -1 {
 			if options.OnError != nil {
 				options.OnError(current, err)
@@ -141,6 +136,27 @@ func (app *App) WebSocket(pattern string, options SocketOptions, handler SocketH
 			_ = socket.Close(SocketStatusInternalError, "internal server error")
 		}
 	}), middleware...)
+}
+
+func socketPattern(pattern string) string {
+	fields := strings.Fields(pattern)
+	switch len(fields) {
+	case 1:
+		if !strings.HasPrefix(fields[0], "/") {
+			panic("northframe: WebSocket path must start with /")
+		}
+		return http.MethodGet + " " + fields[0]
+	case 2:
+		if fields[0] != http.MethodGet {
+			panic("northframe: WebSocket routes must use GET")
+		}
+		if !strings.HasPrefix(fields[1], "/") {
+			panic("northframe: WebSocket path must start with /")
+		}
+		return fields[0] + " " + fields[1]
+	default:
+		panic("northframe: WebSocket pattern must be /path or GET /path")
+	}
 }
 
 func runSocketHandler(current *Context, socket *Socket, handler SocketHandler) (err error) {

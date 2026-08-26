@@ -62,8 +62,16 @@ func (current *server) hover(id json.RawMessage, raw json.RawMessage) error {
 		if found.HasSlot {
 			children = "\n\nAccepts child markup through `<slot />`."
 		}
+		events := ""
+		if len(found.Events) > 0 {
+			quoted := make([]string, 0, len(found.Events))
+			for _, event := range found.Events {
+				quoted = append(quoted, "`on:"+event+"`")
+			}
+			events = "\n\n**Events:** " + strings.Join(quoted, ", ")
+		}
 		return current.reply(id, map[string]any{
-			"contents": map[string]string{"kind": "markdown", "value": "### `<" + found.Name + ">`\n\nIndependent Northframe component with type-checked Go props and isolated browser state.\n\n" + props + children + "\n\nUse **Go to Definition** to open its `.north` source."},
+			"contents": map[string]string{"kind": "markdown", "value": "### `<" + found.Name + ">`\n\nIndependent Northframe component with type-checked Go props and isolated browser state.\n\n" + props + children + events + "\n\nUse **Go to Definition** to open its `.north` source."},
 		})
 	}
 	if help, ok := hoverHelpAt(text, offset); ok {
@@ -99,6 +107,10 @@ var hoverTopics = []hoverTopic{
 		"### Go server condition\n\n`{if Props.Condition}` renders its body during SSR when the value is truthy. Full Go boolean expressions such as `{if len(Props.Items) > 0}` compile directly. Close it with `{/if}`.",
 	},
 	{
+		regexp.MustCompile(`\{html\b[^}]*\}`),
+		"### Sanitized server HTML\n\n`{html Props.Content}` renders a typed `web.SafeHTML` value without escaping it again. Ordinary strings are rejected by Go's type checker. Create the value only after an allow-list sanitizer has removed scripts, event handlers, and unsafe URLs:\n\n```go\nContent: web.SafeHTMLFromSanitized(sanitize.RichText(value))\n```",
+	},
+	{
 		regexp.MustCompile(`\{/if\}`),
 		"### End server condition\n\n`{/if}` closes the nearest `{if ...}` block.",
 	},
@@ -120,7 +132,11 @@ var hoverTopics = []hoverTopic{
 	},
 	{
 		regexp.MustCompile(`on:[A-Za-z][A-Za-z0-9_-]*`),
-		"### Client event\n\n`on:event={handler}` runs a function or expression from `<script lang=\"ts\">`, then refreshes Northframe client bindings.",
+		"### Client event\n\n`on:event={handler}` runs a function or expression from `<script lang=\"ts\">`, then refreshes Northframe client bindings. It also listens to bubbling events emitted by an independent component with `dispatch(\"event\", detail)`.",
+	},
+	{
+		regexp.MustCompile(`\bdispatch\s*\(`),
+		"### Component event dispatch\n\n`dispatch(\"event\", detail)` emits a bubbling `CustomEvent` from the current independent component. A parent listens with `on:event={handler}` and receives the typed value on `event.detail`.",
 	},
 	{
 		regexp.MustCompile(`bind:value`),
@@ -190,6 +206,7 @@ func (current *server) completion(id json.RawMessage, raw json.RawMessage) error
 	items := []map[string]any{
 		{"label": "Props frontmatter", "kind": 15, "insertText": "---\n${1:import models \"example/internal/models\"}\n\ninterface Props {\n\t${2:Title} ${3:string}\n}\n---\n", "insertTextFormat": 2, "detail": "Go imports and typed server props"},
 		{"label": "{Props.Value}", "kind": 15, "insertText": "{Props.${1:Value}}", "insertTextFormat": 2, "detail": "Escaped Go SSR value"},
+		{"label": "{html}", "kind": 15, "insertText": "{html Props.${1:ContentHTML}}", "insertTextFormat": 2, "detail": "Render a typed web.SafeHTML value"},
 		{"label": "{#state}", "kind": 15, "insertText": "{#${1:name}}", "insertTextFormat": 2, "detail": "Reactive TypeScript value"},
 		{"label": "{if}", "kind": 15, "insertText": "{if Props.${1:Condition}}\n\t$0\n{/if}", "insertTextFormat": 2, "detail": "Go server condition"},
 		{"label": "{for}", "kind": 15, "insertText": "{for ${1:item} := range Props.${2:Items}}\n\t$0\n{/for}", "insertTextFormat": 2, "detail": "Go server range loop"},
@@ -198,6 +215,7 @@ func (current *server) completion(id json.RawMessage, raw json.RawMessage) error
 		{"label": "<slot />", "kind": 15, "insertText": "<slot />", "detail": "Layout content slot"},
 		{"label": "<script lang=\"ts\">", "kind": 15, "insertText": "<script lang=\"ts\">\nlet ${1:open}: boolean = false;\n</script>", "insertTextFormat": 2, "detail": "Compiled route TypeScript"},
 		{"label": "on:click", "kind": 10, "insertText": "on:click={${1:handler}}", "insertTextFormat": 2, "detail": "TypeScript event handler"},
+		{"label": "dispatch", "kind": 3, "insertText": "dispatch(\"${1:event}\", ${2:detail});", "insertTextFormat": 2, "detail": "Emit a bubbling component CustomEvent"},
 		{"label": "show", "kind": 10, "insertText": "show={#${1:open}}", "insertTextFormat": 2, "detail": "Reactive visibility binding"},
 		{"label": "bind:value", "kind": 10, "insertText": "bind:value={#${1:value}}", "insertTextFormat": 2, "detail": "Two-way TypeScript state binding"},
 		{"label": "class:name", "kind": 10, "insertText": "class:${1:active}={#${2:enabled}}", "insertTextFormat": 2, "detail": "Reactive class binding"},
@@ -228,6 +246,9 @@ func (current *server) completion(id json.RawMessage, raw json.RawMessage) error
 		}
 		snippet += ending
 		items = append(items, map[string]any{"label": "<" + component.Name + ">", "kind": 7, "insertText": snippet, "insertTextFormat": 2, "detail": "Independent typed component"})
+		for _, event := range component.Events {
+			items = append(items, map[string]any{"label": "on:" + event + " (" + component.Name + ")", "kind": 10, "insertText": "on:" + event + "={${1:handler}}", "insertTextFormat": 2, "detail": "Event emitted by <" + component.Name + ">"})
+		}
 	}
 	return current.reply(id, map[string]any{"isIncomplete": false, "items": items})
 }
