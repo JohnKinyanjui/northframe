@@ -11,8 +11,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.27.x'
           cache: true
@@ -25,7 +25,7 @@ jobs:
       - run: go vet ./...
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - run: go test ./internal/compiler -run '^$' -bench . -benchtime=200ms -benchmem
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
       - run: npm test && npm run check
@@ -33,7 +33,7 @@ jobs:
       - name: Package unreleased VS Code extension
         working-directory: lsp/vscode
         run: npx --yes @vscode/vsce package --out northframe-0.0.0.vsix
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: northframe-vscode-unreleased
           path: lsp/vscode/northframe-0.0.0.vsix
@@ -53,8 +53,8 @@ jobs:
           - goos: darwin
             goarch: arm64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.27.x'
           cache: true
