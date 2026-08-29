@@ -4,7 +4,7 @@ package sqlite
 import (
 	"database/sql"
 
-	"northframe.dev/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
 
 	_ "modernc.org/sqlite"
 )

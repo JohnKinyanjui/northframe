@@ -3,9 +3,9 @@ package live
 import (
 	"time"
 
-	"northframe.dev/northframe/examples/commerce/internal/viewmodels"
-	"northframe.dev/northframe/examples/commerce/services/commerce"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/internal/viewmodels"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/services/commerce"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type inventoryRequest struct {

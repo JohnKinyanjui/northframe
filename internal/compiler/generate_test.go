@@ -54,6 +54,23 @@ Items []models.Item
 	}
 }
 
+func TestCompileSupportsDollarServerInterpolation(t *testing.T) {
+	source := []byte(`---
+interface Props {
+Title string
+}
+---
+<a href="/items/${Props.Title}">${Props.Title}</a>`)
+	generated, err := Compile("components", "link", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(generated)
+	if strings.Count(result, "web.WriteEscaped(w, props.Title)") != 2 {
+		t.Fatalf("dollar interpolation was not compiled as escaped Go values\n%s", result)
+	}
+}
+
 func TestCompileRejectsDuplicatePropsContracts(t *testing.T) {
 	_, err := Compile("components", "panel", []byte(`---
 interface Props {
@@ -138,7 +155,7 @@ Kind string
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(generated), `"northframe.dev/northframe/pkg/web"`) {
+	if strings.Contains(string(generated), `"github.com/JohnKinyanjui/northframe/pkg/web"`) {
 		t.Fatalf("comparison-only component imported unused runtime\n%s", generated)
 	}
 }

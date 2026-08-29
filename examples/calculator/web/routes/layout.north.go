@@ -1,6 +1,6 @@
 package routes
 
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 
 type LayoutProps struct {
 	Title string

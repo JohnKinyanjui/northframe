@@ -9,18 +9,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/JohnKinyanjui/northframe/internal/dependencies"
 	"github.com/evanw/esbuild/pkg/api"
-	"northframe.dev/northframe/internal/dependencies"
 )
 
 var (
 	typeScriptBlock = regexp.MustCompile(`(?s)<script\s+lang=["']ts["']\s*>(.*?)</script>`)
 	clientEvent     = regexp.MustCompile(`on:([A-Za-z][A-Za-z0-9_-]*)=\{([^{}]+)\}`)
-	clientShow      = regexp.MustCompile(`show=\{#([A-Za-z_][A-Za-z0-9_.]*)\}`)
-	clientModel     = regexp.MustCompile(`bind:value=\{#([A-Za-z_][A-Za-z0-9_.]*)\}`)
-	clientClass     = regexp.MustCompile(`class:([A-Za-z_][A-Za-z0-9_-]*)=\{#([A-Za-z_][A-Za-z0-9_.]*)\}`)
-	clientAttr      = regexp.MustCompile(`(aria-[A-Za-z0-9_-]+|data-[A-Za-z0-9_-]+|title)=\{#([A-Za-z_][A-Za-z0-9_.]*)\}`)
-	clientText      = regexp.MustCompile(`\{#([A-Za-z_][A-Za-z0-9_.]*)\}`)
+	clientShow      = regexp.MustCompile(`show=(?:\{#([A-Za-z_][A-Za-z0-9_.]*)\}|#\{([A-Za-z_][A-Za-z0-9_.]*)\})`)
+	clientModel     = regexp.MustCompile(`bind:value=(?:\{#([A-Za-z_][A-Za-z0-9_.]*)\}|#\{([A-Za-z_][A-Za-z0-9_.]*)\})`)
+	clientClass     = regexp.MustCompile(`class:([A-Za-z_][A-Za-z0-9_-]*)=(?:\{#([A-Za-z_][A-Za-z0-9_.]*)\}|#\{([A-Za-z_][A-Za-z0-9_.]*)\})`)
+	clientAttr      = regexp.MustCompile(`(aria-[A-Za-z0-9_-]+|data-[A-Za-z0-9_-]+|title)=(?:\{#([A-Za-z_][A-Za-z0-9_.]*)\}|#\{([A-Za-z_][A-Za-z0-9_.]*)\})`)
+	clientText      = regexp.MustCompile(`(?:\{#([A-Za-z_][A-Za-z0-9_.]*)\}|#\{([A-Za-z_][A-Za-z0-9_.]*)\})`)
 	clientImport    = regexp.MustCompile(`(?ms)^[ \t]*import(?:[ \t]+type)?(?:[ \t]+(?:[^;"']|"[^"\n]*"|'[^'\n]*')*?[ \t]+from[ \t]+)?[ \t]*["'][^"'\n]+["'][ \t]*;?[ \t]*(?:\r?\n|$)`)
 	clientExport    = regexp.MustCompile(`(?m)^\s*export\b`)
 )
@@ -50,6 +50,15 @@ type clientCompileOptions struct {
 	Scoped     bool
 	SourcePath string
 	Project    dependencies.Project
+}
+
+func firstClientExpression(parts []string, indexes ...int) string {
+	for _, index := range indexes {
+		if index < len(parts) && parts[index] != "" {
+			return parts[index]
+		}
+	}
+	return ""
 }
 
 func compileClientComponent(componentName string, source []byte) ([]byte, *clientModule, error) {
@@ -96,13 +105,13 @@ func compileClientComponentWithOptions(componentName string, source []byte, opti
 		return marker
 	})
 	markup = clientShow.ReplaceAllStringFunc(markup, func(raw string) string {
-		expression := clientShow.FindStringSubmatch(raw)[1]
+		expression := firstClientExpression(clientShow.FindStringSubmatch(raw), 1, 2)
 		marker := nextMarker("bind")
 		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "show", Expression: expression})
 		return marker + " hidden"
 	})
 	markup = clientModel.ReplaceAllStringFunc(markup, func(raw string) string {
-		expression := clientModel.FindStringSubmatch(raw)[1]
+		expression := firstClientExpression(clientModel.FindStringSubmatch(raw), 1, 2)
 		marker := nextMarker("bind")
 		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "model", Expression: expression})
 		return marker
@@ -110,17 +119,17 @@ func compileClientComponentWithOptions(componentName string, source []byte, opti
 	markup = clientClass.ReplaceAllStringFunc(markup, func(raw string) string {
 		parts := clientClass.FindStringSubmatch(raw)
 		marker := nextMarker("bind")
-		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "class", Name: parts[1], Expression: parts[2]})
+		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "class", Name: parts[1], Expression: firstClientExpression(parts, 2, 3)})
 		return marker
 	})
 	markup = clientAttr.ReplaceAllStringFunc(markup, func(raw string) string {
 		parts := clientAttr.FindStringSubmatch(raw)
 		marker := nextMarker("bind")
-		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "attribute", Name: parts[1], Expression: parts[2]})
+		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "attribute", Name: parts[1], Expression: firstClientExpression(parts, 2, 3)})
 		return parts[1] + `="false" ` + marker
 	})
 	markup = clientText.ReplaceAllStringFunc(markup, func(raw string) string {
-		expression := clientText.FindStringSubmatch(raw)[1]
+		expression := firstClientExpression(clientText.FindStringSubmatch(raw), 1, 2)
 		marker := nextMarker("bind")
 		bindings = append(bindings, clientBinding{Selector: "[" + marker + "]", Kind: "text", Expression: expression})
 		return "<span " + marker + "></span>"

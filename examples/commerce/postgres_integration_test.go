@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	generatedRoutes "northframe.dev/northframe/examples/commerce/.generated/routes"
-	commerceDB "northframe.dev/northframe/examples/commerce/internal/db/generated"
-	"northframe.dev/northframe/examples/commerce/services/commerce"
-	"northframe.dev/northframe/pkg/database"
-	"northframe.dev/northframe/pkg/database/postgres"
-	"northframe.dev/northframe/pkg/web"
+	generatedRoutes "github.com/JohnKinyanjui/northframe/examples/commerce/.generated/routes"
+	commerceDB "github.com/JohnKinyanjui/northframe/examples/commerce/internal/db/generated"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/services/commerce"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database/postgres"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func TestPostgresAddProductAction(t *testing.T) {

@@ -1,6 +1,6 @@
 <script context="props">
-import viewmodels "northframe.dev/northframe/examples/commerce/internal/viewmodels"
-Item viewmodels.InventoryItem
+  import viewmodels "github.com/JohnKinyanjui/northframe/examples/commerce/internal/viewmodels"
+  Item viewmodels.InventoryItem
 </script>
 
 

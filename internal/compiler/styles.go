@@ -11,8 +11,10 @@ import (
 var (
 	classAttribute    = regexp.MustCompile(`class=(?:"([^"]*)"|'([^']*)')`)
 	classAssignment   = regexp.MustCompile(`\.className\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+	scriptElement     = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`)
 	customClass       = regexp.MustCompile(`\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)`)
 	borderLength      = regexp.MustCompile(`^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|ex|cm|mm|in|pt|pc))$`)
+	spacingNumber     = regexp.MustCompile(`^(?:\d+(?:\.\d+)?|\.\d+)$`)
 	arbitraryProperty = regexp.MustCompile(`^-?[a-zA-Z][a-zA-Z0-9-]*$`)
 )
 
@@ -34,7 +36,7 @@ const preflightCSS = `/* Northframe utility preflight */
 html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:var(--nf-font-sans)}
 body{margin:0;line-height:inherit}button,input,select,textarea{font:inherit;color:inherit}button,[type=button],[type=reset],[type=submit]{background-color:transparent;background-image:none}
 blockquote,dl,dd,h1,h2,h3,h4,h5,h6,hr,figure,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}ol,ul,menu{list-style:none;margin:0;padding:0}
-a{color:inherit;text-decoration:inherit}img,svg,video{display:block;max-width:100%;height:auto}north-component{display:contents}[hidden]{display:none!important}
+a{color:inherit;text-decoration:inherit}img,svg,video{display:block;max-width:100%;height:auto}north-component,north-route-segment{display:contents}[hidden]{display:none!important}
 @keyframes nf-spin{to{transform:rotate(360deg)}}
 @keyframes nf-pulse{50%{opacity:.5}}
 @keyframes nf-bounce{0%,100%{transform:translateY(-25%);animation-timing-function:cubic-bezier(.8,0,1,1)}50%{transform:none;animation-timing-function:cubic-bezier(0,0,.2,1)}}
@@ -42,7 +44,7 @@ a{color:inherit;text-decoration:inherit}img,svg,video{display:block;max-width:10
 `
 
 // BuildStyles compiles the Tailwind-compatible utility classes found in views
-// and appends colocated page.css/layout.css source verbatim.
+// and appends web/app.css plus colocated page.css/layout.css source verbatim.
 func BuildStyles(views [][]byte, customCSS [][]byte) []byte {
 	classes := map[string]struct{}{}
 	for _, view := range views {
@@ -80,7 +82,7 @@ func BuildStyles(views [][]byte, customCSS [][]byte) []byte {
 		if len(bytes.TrimSpace(css)) == 0 {
 			continue
 		}
-		output.WriteString("\n/* Colocated route CSS */\n")
+		output.WriteString("\n/* Project and route CSS */\n")
 		output.Write(bytes.TrimSpace(css))
 		output.WriteByte('\n')
 	}
@@ -123,8 +125,17 @@ func UnsupportedClasses(views [][]byte, customCSS [][]byte) []ClassIssue {
 
 func literalClasses(source []byte) []literalClass {
 	result := make([]literalClass, 0)
-	for _, matcher := range []*regexp.Regexp{classAttribute, classAssignment} {
-		for _, match := range matcher.FindAllSubmatchIndex(source, -1) {
+	markup := append([]byte(nil), source...)
+	for _, bounds := range scriptElement.FindAllIndex(markup, -1) {
+		for index := bounds[0]; index < bounds[1]; index++ {
+			markup[index] = ' '
+		}
+	}
+	for _, current := range []struct {
+		matcher *regexp.Regexp
+		source  []byte
+	}{{classAttribute, markup}, {classAssignment, source}} {
+		for _, match := range current.matcher.FindAllSubmatchIndex(current.source, -1) {
 			start, end := match[2], match[3]
 			if start < 0 {
 				start, end = match[4], match[5]
@@ -326,26 +337,26 @@ func utilityDeclaration(className string) string {
 		"flex-1": "flex:1 1 0%", "flex-row": "flex-direction:row", "flex-col": "flex-direction:column", "flex-wrap": "flex-wrap:wrap", "grow": "flex-grow:1", "shrink-0": "flex-shrink:0",
 		"items-start": "align-items:flex-start", "items-center": "align-items:center", "items-end": "align-items:flex-end", "place-items-center": "place-items:center",
 		"justify-start": "justify-content:flex-start", "justify-center": "justify-content:center", "justify-end": "justify-content:flex-end", "justify-between": "justify-content:space-between",
-		"text-left": "text-align:left", "text-center": "text-align:center", "text-right": "text-align:right", "text-start": "text-align:start",
+		"text-left": "text-align:left", "text-center": "text-align:center", "text-right": "text-align:right", "text-start": "text-align:start", "text-inherit": "color:inherit",
 		"font-sans": "font-family:var(--nf-font-sans)", "font-serif": "font-family:var(--nf-font-serif)", "font-mono": "font-family:var(--nf-font-mono)", "font-display": "font-family:var(--nf-font-display)", "font-jakarta": "font-family:'Plus Jakarta Sans','Salesforce Sans',ui-sans-serif,system-ui,sans-serif",
 		"font-normal": "font-weight:400", "font-medium": "font-weight:500", "font-semibold": "font-weight:600", "font-bold": "font-weight:700", "font-extrabold": "font-weight:800",
 		"uppercase": "text-transform:uppercase", "lowercase": "text-transform:lowercase", "capitalize": "text-transform:capitalize", "tracking-tight": "letter-spacing:-.025em", "tracking-wide": "letter-spacing:.025em", "tracking-widest": "letter-spacing:.1em",
 		"leading-none": "line-height:1", "leading-tight": "line-height:1.25", "leading-relaxed": "line-height:1.625", "tabular-nums": "font-variant-numeric:tabular-nums", "antialiased": "-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale",
-		"rounded": "border-radius:.25rem", "rounded-md": "border-radius:.375rem", "rounded-lg": "border-radius:.5rem", "rounded-xl": "border-radius:.75rem", "rounded-2xl": "border-radius:1rem", "rounded-3xl": "border-radius:1.5rem", "rounded-full": "border-radius:9999px", "rounded-t-xl": "border-top-left-radius:.75rem;border-top-right-radius:.75rem",
-		"border": "border-width:1px", "border-2": "border-width:2px", "border-0": "border-width:0", "border-t": "border-top-width:1px", "border-t-2": "border-top-width:2px", "border-r": "border-right-width:1px", "border-r-2": "border-right-width:2px", "border-b": "border-bottom-width:1px", "border-b-2": "border-bottom-width:2px", "border-l": "border-left-width:1px", "border-l-2": "border-left-width:2px", "border-dashed": "border-style:dashed",
+		"rounded": "border-radius:.25rem", "rounded-md": "border-radius:.375rem", "rounded-lg": "border-radius:.5rem", "rounded-xl": "border-radius:.75rem", "rounded-2xl": "border-radius:1rem", "rounded-3xl": "border-radius:1.5rem", "rounded-full": "border-radius:9999px", "rounded-t-xl": "border-top-left-radius:.75rem;border-top-right-radius:.75rem", "rounded-r-xl": "border-top-right-radius:.75rem;border-bottom-right-radius:.75rem",
+		"border": "border-width:1px", "border-2": "border-width:2px", "border-0": "border-width:0", "border-t": "border-top-width:1px", "border-t-2": "border-top-width:2px", "border-r": "border-right-width:1px", "border-r-2": "border-right-width:2px", "border-b": "border-bottom-width:1px", "border-b-2": "border-bottom-width:2px", "border-l": "border-left-width:1px", "border-l-2": "border-left-width:2px", "border-l-4": "border-left-width:4px", "border-dashed": "border-style:dashed",
 		"shadow-sm": "--nf-shadow-color:rgb(15 23 42/.06);box-shadow:0 1px 2px var(--nf-shadow-color)", "shadow": "--nf-shadow-color:rgb(0 0 0/.1);box-shadow:0 1px 3px var(--nf-shadow-color)", "shadow-md": "--nf-shadow-color:rgb(0 0 0/.1);box-shadow:0 4px 6px -1px var(--nf-shadow-color)", "shadow-inner": "--nf-shadow-color:rgb(0 0 0/.05);box-shadow:inset 0 2px 4px 0 var(--nf-shadow-color)", "shadow-lg": "--nf-shadow-color:rgb(0 0 0/.1);box-shadow:0 10px 15px -3px var(--nf-shadow-color)", "shadow-xl": "--nf-shadow-color:rgb(0 0 0/.1);box-shadow:0 20px 25px -5px var(--nf-shadow-color)", "shadow-2xl": "--nf-shadow-color:rgb(0 0 0/.5);box-shadow:0 25px 50px -12px var(--nf-shadow-color)",
 		"w-full": "width:100%", "w-screen": "width:100vw", "w-auto": "width:auto", "w-2": "width:.5rem", "w-3": "width:.75rem", "w-3.5": "width:.875rem", "w-8": "width:2rem", "w-9": "width:2.25rem", "w-10": "width:2.5rem", "w-12": "width:3rem", "w-64": "width:16rem",
-		"h-full": "height:100%", "h-screen": "height:100vh", "h-0.5": "height:.125rem", "h-2": "height:.5rem", "h-3": "height:.75rem", "h-3.5": "height:.875rem", "h-8": "height:2rem", "h-9": "height:2.25rem", "h-10": "height:2.5rem", "h-12": "height:3rem", "h-16": "height:4rem", "h-20": "height:5rem", "h-[20vh]": "height:20vh", "h-[25vh]": "height:25vh", "h-[40vh]": "height:40vh",
+		"h-full": "height:100%", "h-screen": "height:100vh", "h-auto": "height:auto", "h-0.5": "height:.125rem", "h-2": "height:.5rem", "h-3": "height:.75rem", "h-3.5": "height:.875rem", "h-8": "height:2rem", "h-9": "height:2.25rem", "h-10": "height:2.5rem", "h-12": "height:3rem", "h-16": "height:4rem", "h-20": "height:5rem", "h-[20vh]": "height:20vh", "h-[25vh]": "height:25vh", "h-[40vh]": "height:40vh",
 		"min-h-0": "min-height:0", "min-h-screen": "min-height:100vh", "min-w-0": "min-width:0", "max-w-xs": "max-width:20rem", "max-w-sm": "max-width:24rem", "max-w-[380px]": "max-width:380px", "max-w-md": "max-width:28rem", "max-w-lg": "max-width:32rem", "max-w-xl": "max-width:36rem", "max-w-2xl": "max-width:42rem", "max-w-3xl": "max-width:48rem", "max-w-4xl": "max-width:56rem", "max-w-5xl": "max-width:64rem", "max-w-6xl": "max-width:72rem", "max-w-7xl": "max-width:80rem",
 		"mx-auto": "margin-left:auto;margin-right:auto", "overflow-hidden": "overflow:hidden", "overflow-x-auto": "overflow-x:auto", "overflow-y-auto": "overflow-y:auto", "cursor-pointer": "cursor:pointer", "cursor-not-allowed": "cursor:not-allowed", "pointer-events-none": "pointer-events:none", "select-none": "user-select:none", "whitespace-nowrap": "white-space:nowrap", "truncate": "overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "line-clamp-2": "display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden", "object-cover": "object-fit:cover", "object-contain": "object-fit:contain", "aspect-square": "aspect-ratio:1 / 1", "list-none": "list-style-type:none", "appearance-none": "appearance:none", "resize-y": "resize:vertical",
-		"outline-none": "outline:2px solid transparent;outline-offset:2px", "scale-95": "transform:scale(.95)", "rotate-180": "transform:rotate(180deg)", "-translate-y-1/2": "transform:translateY(-50%)", "-translate-y-0.5": "transform:translateY(-.125rem)", "opacity-0": "opacity:0", "opacity-30": "opacity:.3", "opacity-40": "opacity:.4", "opacity-50": "opacity:.5", "opacity-60": "opacity:.6", "opacity-70": "opacity:.7", "opacity-80": "opacity:.8", "opacity-100": "opacity:1",
+		"outline-none": "outline:2px solid transparent;outline-offset:2px", "scale-95": "transform:scale(.95)", "rotate-180": "transform:rotate(180deg)", "-translate-y-1/2": "transform:translateY(-50%)", "-translate-y-0.5": "transform:translateY(-.125rem)", "opacity-0": "opacity:0", "opacity-30": "opacity:.3", "opacity-40": "opacity:.4", "opacity-50": "opacity:.5", "opacity-60": "opacity:.6", "opacity-70": "opacity:.7", "opacity-80": "opacity:.8", "opacity-100": "opacity:1", "scroll-mt-24": "scroll-margin-top:6rem",
 		"transition": "transition-property:color,background-color,border-color,opacity,transform;transition-duration:150ms", "transition-all": "transition-property:all;transition-duration:150ms", "transition-colors": "transition-property:color,background-color,border-color;transition-duration:150ms", "transition-opacity": "transition-property:opacity;transition-duration:150ms", "duration-100": "transition-duration:100ms", "duration-200": "transition-duration:200ms", "duration-300": "transition-duration:300ms",
 		"animate-spin": "animation:nf-spin 1s linear infinite", "animate-bounce": "animation:nf-bounce 1s infinite", "animate-[slot-scroll_20s_linear_infinite]": "animation:slot-scroll 20s linear infinite", "animate-[slot-scroll_22s_linear_infinite]": "animation:slot-scroll 22s linear infinite", "animate-[slot-scroll_25s_linear_infinite]": "animation:slot-scroll 25s linear infinite", "animate-[slot-scroll_28s_linear_infinite]": "animation:slot-scroll 28s linear infinite",
 		"ring-1": "box-shadow:0 0 0 1px var(--nf-ring-color)", "ring-2": "box-shadow:0 0 0 2px var(--nf-ring-color)", "ring-[#dfff78]": "--nf-ring-color:#dfff78", "border-[#8cc900]": "border-color:#8cc900", "border-t-white": "border-top-color:#fff", "border-white/40": "border-color:rgb(255 255 255/.4)",
 		"bg-black/80": "background-color:rgb(0 0 0/.8)", "bg-black/90": "background-color:rgb(0 0 0/.9)", "bg-primary": "background-color:#d4f542", "bg-primary/90": "background-color:rgb(212 245 66/.9)", "text-primary-foreground": "color:#101918",
 		"bg-linear-to-b": "background-image:linear-gradient(to bottom,var(--nf-gradient-stops))", "bg-linear-to-t": "background-image:linear-gradient(to top,var(--nf-gradient-stops))", "bg-linear-to-br": "background-image:linear-gradient(to bottom right,var(--nf-gradient-stops))", "from-black": "--nf-gradient-from:#000;--nf-gradient-to:rgb(0 0 0/0);--nf-gradient-stops:var(--nf-gradient-from),var(--nf-gradient-to)", "from-black/80": "--nf-gradient-from:rgb(0 0 0/.8);--nf-gradient-to:rgb(0 0 0/0);--nf-gradient-stops:var(--nf-gradient-from),var(--nf-gradient-to)", "via-black/90": "--nf-gradient-stops:var(--nf-gradient-from),rgb(0 0 0/.9),var(--nf-gradient-to)", "to-transparent": "--nf-gradient-to:transparent",
 		"backdrop-blur-sm": "backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)", "backdrop-blur-[2px]": "backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)",
-		"sr-only": "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0",
+		"sr-only": "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0", "underline-offset-4": "text-underline-offset:4px", "decoration-sky-200": "text-decoration-color:#bae6fd", "no-underline": "text-decoration-line:none",
 	}
 	if declaration := static[className]; declaration != "" {
 		return declaration
@@ -632,7 +643,15 @@ func spacingValue(value string) string {
 	values := map[string]string{
 		"px": "1px", "0": "0", "0.5": ".125rem", "1": ".25rem", "1.5": ".375rem", "2": ".5rem", "2.5": ".625rem", "3": ".75rem", "3.5": ".875rem", "4": "1rem", "5": "1.25rem", "6": "1.5rem", "7": "1.75rem", "8": "2rem", "9": "2.25rem", "10": "2.5rem", "11": "2.75rem", "12": "3rem", "14": "3.5rem", "16": "4rem", "20": "5rem", "24": "6rem", "28": "7rem", "32": "8rem", "36": "9rem", "40": "10rem", "44": "11rem", "48": "12rem", "52": "13rem", "56": "14rem", "64": "16rem", "72": "18rem", "80": "20rem", "96": "24rem",
 	}
-	return values[value]
+	if resolved := values[value]; resolved != "" {
+		return resolved
+	}
+	if spacingNumber.MatchString(value) {
+		if number, err := strconv.ParseFloat(value, 64); err == nil {
+			return strconv.FormatFloat(number/4, 'f', -1, 64) + "rem"
+		}
+	}
+	return ""
 }
 
 func textSize(value string) string {
@@ -659,10 +678,11 @@ func colorValue(value string) string {
 		"red-50": "#fef2f2", "red-100": "#fee2e2", "red-200": "#fecaca", "red-400": "#f87171", "red-500": "#ef4444", "red-600": "#dc2626", "red-700": "#b91c1c", "red-800": "#991b1b", "red-950": "#450a0a",
 		"lime-50": "#f7fee7", "lime-100": "#ecfccb", "lime-200": "#d9f99d", "lime-300": "#bef264", "lime-400": "#a3e635", "lime-500": "#84cc16", "lime-600": "#65a30d", "lime-700": "#4d7c0f", "lime-800": "#3f6212", "lime-900": "#365314", "lime-950": "#1a2e05",
 		"green-50": "#f0fdf4", "green-100": "#dcfce7", "green-200": "#bbf7d0", "green-500": "#22c55e", "green-600": "#16a34a", "green-700": "#15803d", "green-800": "#166534",
-		"emerald-50": "#ecfdf5", "emerald-100": "#d1fae5", "emerald-200": "#a7f3d0", "emerald-400": "#34d399", "emerald-500": "#10b981", "emerald-600": "#059669", "emerald-700": "#047857", "emerald-800": "#065f46",
-		"rose-50": "#fff1f2", "rose-100": "#ffe4e6", "rose-200": "#fecdd3", "rose-400": "#fb7185", "rose-500": "#f43f5e", "rose-600": "#e11d48", "rose-700": "#be123c", "rose-950": "#4c0519",
-		"sky-50": "#f0f9ff", "sky-100": "#e0f2fe", "sky-400": "#38bdf8", "sky-500": "#0ea5e9", "sky-600": "#0284c7", "sky-700": "#0369a1",
-		"cyan-300": "#67e8f9", "cyan-400": "#22d3ee", "cyan-500": "#06b6d4",
+		"emerald-50": "#ecfdf5", "emerald-100": "#d1fae5", "emerald-200": "#a7f3d0", "emerald-300": "#6ee7b7", "emerald-400": "#34d399", "emerald-500": "#10b981", "emerald-600": "#059669", "emerald-700": "#047857", "emerald-800": "#065f46",
+		"rose-50": "#fff1f2", "rose-100": "#ffe4e6", "rose-200": "#fecdd3", "rose-300": "#fda4af", "rose-400": "#fb7185", "rose-500": "#f43f5e", "rose-600": "#e11d48", "rose-700": "#be123c", "rose-950": "#4c0519",
+		"sky-50": "#f0f9ff", "sky-100": "#e0f2fe", "sky-200": "#bae6fd", "sky-300": "#7dd3fc", "sky-400": "#38bdf8", "sky-500": "#0ea5e9", "sky-600": "#0284c7", "sky-700": "#0369a1", "sky-900": "#0c4a6e",
+		"violet-300": "#c4b5fd",
+		"cyan-300":   "#67e8f9", "cyan-400": "#22d3ee", "cyan-500": "#06b6d4",
 	}
 	if color := colors[value]; color != "" {
 		return color

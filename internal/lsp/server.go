@@ -59,6 +59,8 @@ func (current *server) handle(message request) error {
 		return current.completion(message.ID, message.Params)
 	case "textDocument/definition":
 		return current.definition(message.ID, message.Params)
+	case "textDocument/references":
+		return current.references(message.ID, message.Params)
 	case "textDocument/prepareRename":
 		return current.prepareRename(message.ID, message.Params)
 	case "textDocument/rename":
@@ -67,6 +69,8 @@ func (current *server) handle(message request) error {
 		return current.documentSymbols(message.ID, message.Params)
 	case "textDocument/formatting":
 		return current.formatting(message.ID, message.Params)
+	case "northframe/organizeImports":
+		return current.organizeImports(message.ID, message.Params)
 	default:
 		if len(message.ID) == 0 {
 			return nil
@@ -84,6 +88,7 @@ func initializeResult() map[string]any {
 			"textDocumentSync":           1,
 			"hoverProvider":              true,
 			"definitionProvider":         true,
+			"referencesProvider":         true,
 			"renameProvider":             map[string]any{"prepareProvider": true},
 			"documentSymbolProvider":     true,
 			"documentFormattingProvider": true,
@@ -107,7 +112,7 @@ func (current *server) didOpen(raw json.RawMessage) error {
 		return err
 	}
 	current.documents[params.TextDocument.URI] = params.TextDocument.Text
-	return current.publishDiagnostics(params.TextDocument.URI, params.TextDocument.Text)
+	return current.publishDiagnostics(params.TextDocument.URI, params.TextDocument.Text, params.TextDocument.Version)
 }
 
 func (current *server) didChange(raw json.RawMessage) error {
@@ -125,7 +130,7 @@ func (current *server) didChange(raw json.RawMessage) error {
 	}
 	text := params.ContentChanges[len(params.ContentChanges)-1].Text
 	current.documents[params.TextDocument.URI] = text
-	return current.publishDiagnostics(params.TextDocument.URI, text)
+	return current.publishDiagnostics(params.TextDocument.URI, text, params.TextDocument.Version)
 }
 
 func (current *server) didClose(raw json.RawMessage) error {

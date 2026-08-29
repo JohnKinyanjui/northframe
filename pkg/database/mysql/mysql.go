@@ -4,7 +4,7 @@ package mysql
 import (
 	"database/sql"
 
-	"northframe.dev/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
 
 	_ "github.com/go-sql-driver/mysql"
 )

@@ -1,0 +1,9 @@
+---
+import site "github.com/JohnKinyanjui/northframe/docs/internal/site"
+
+interface Props {
+  Page site.Page
+}
+---
+
+<DocsPage Page=${Props.Page} />

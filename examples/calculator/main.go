@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"northframe.dev/northframe/examples/calculator/.generated/routes"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/examples/calculator/.generated/routes"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func main() {

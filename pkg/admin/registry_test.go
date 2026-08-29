@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"northframe.dev/northframe/pkg/auth"
+	"github.com/JohnKinyanjui/northframe/pkg/auth"
 )
 
 type testRepository struct{}

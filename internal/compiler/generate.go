@@ -33,7 +33,7 @@ func compileComponent(packageName, componentName string, source []byte, definiti
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	output.WriteString("import (\n\t\"io\"\n")
 	if nodesUseRuntime(parsed.Children) {
-		output.WriteString("\n\t\"northframe.dev/northframe/pkg/web\"\n")
+		output.WriteString("\n\t\"github.com/JohnKinyanjui/northframe/pkg/web\"\n")
 	}
 	for _, componentImport := range parsed.Imports {
 		fmt.Fprintf(&output, "\t%s %s\n", componentImport.Alias, strconv.Quote(componentImport.Path))
@@ -94,7 +94,7 @@ func compileRoute(packageName, componentName string, source []byte, routeAlias, 
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	output.WriteString("import (\n\t\"io\"\n")
 	if kind == "layout" || nodesUseRuntime(parsed.Children) {
-		output.WriteString("\n\t\"northframe.dev/northframe/pkg/web\"\n")
+		output.WriteString("\n\t\"github.com/JohnKinyanjui/northframe/pkg/web\"\n")
 	}
 	fmt.Fprintf(&output, "\t%s %s\n", routeAlias, strconv.Quote(routeImport))
 	output.WriteString(")\n\n")
@@ -181,12 +181,12 @@ func writeNodes(output *bytes.Buffer, nodes []node, locals map[string]bool, slot
 			writeNodes(output, current.Children, nested, slotExpressions, propsMarker, definitions)
 			output.WriteString("\t}\n")
 		case componentNode:
-			writeComponentNode(output, current, locals, propsMarker, definitions)
+			writeComponentNode(output, current, locals, slotExpressions, propsMarker, definitions)
 		}
 	}
 }
 
-func writeComponentNode(output *bytes.Buffer, current componentNode, locals map[string]bool, propsMarker string, definitions map[string]componentView) {
+func writeComponentNode(output *bytes.Buffer, current componentNode, locals map[string]bool, slotExpressions map[string]string, propsMarker string, definitions map[string]componentView) {
 	eventAttributes := make([]string, 0)
 	for _, attribute := range current.Attributes {
 		if componentEventAttribute(attribute.Name) {
@@ -215,12 +215,12 @@ func writeComponentNode(output *bytes.Buffer, current componentNode, locals map[
 	defaultChildren, namedChildren := componentChildrenBySlot(current.Children)
 	if len(defaultChildren) > 0 {
 		output.WriteString("\t\tContent: func(w io.Writer) error {\n")
-		writeNodes(output, defaultChildren, locals, nil, propsMarker, definitions)
+		writeNodes(output, defaultChildren, locals, slotExpressions, propsMarker, definitions)
 		output.WriteString("\t\t\treturn nil\n\t\t},\n")
 	}
 	for _, name := range sortedSlotKeys(namedChildren) {
 		fmt.Fprintf(output, "\t\t%s: func(w io.Writer) error {\n", slotFieldName(name))
-		writeNodes(output, namedChildren[name], locals, nil, propsMarker, definitions)
+		writeNodes(output, namedChildren[name], locals, slotExpressions, propsMarker, definitions)
 		output.WriteString("\t\t\treturn nil\n\t\t},\n")
 	}
 	output.WriteString("\t}); err != nil { return err }\n")

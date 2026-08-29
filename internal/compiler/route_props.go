@@ -14,8 +14,8 @@ import (
 const routePropsFilename = "props_generated.go"
 
 var (
-	serverPropsValue = regexp.MustCompile(`\{Props\.([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\}`)
-	plainServerValue = regexp.MustCompile(`\{([A-Z][A-Za-z0-9_]*)\}`)
+	serverPropsValue = regexp.MustCompile(`(?:\$\{|\{)Props\.([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\}`)
+	plainServerValue = regexp.MustCompile(`(?:\$\{|\{)([A-Z][A-Za-z0-9_]*)\}`)
 	serverIf         = regexp.MustCompile(`\{if\s+Props\.([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\}`)
 	serverFor        = regexp.MustCompile(`\{for\s+[a-z_][A-Za-z0-9_]*\s*:=\s*range\s+Props\.([^}]+)\}`)
 	clientPropValue  = regexp.MustCompile(`\bprops\.([A-Z][A-Za-z0-9_]*)(\.[A-Za-z_][A-Za-z0-9_.]*)?`)

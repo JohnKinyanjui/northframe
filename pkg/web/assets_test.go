@@ -14,10 +14,12 @@ func TestBrowserHandlerServesModularRuntime(t *testing.T) {
 		contains string
 	}{
 		{path: "/runtime.js", contains: `from "./reload.js"`},
+		{path: "/navigation.js", contains: `data-north-route-segment`},
 		{path: "/reload.js", contains: "enableDevelopmentReload"},
 		{path: "/component.js", contains: "mountComponent"},
 		{path: "/forms.js", contains: "nf-enhance"},
 		{path: "/calculator.js", contains: "mountCalculators"},
+		{path: "/htmx.min.js", contains: "var htmx="},
 	} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))

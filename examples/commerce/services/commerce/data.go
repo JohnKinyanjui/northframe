@@ -3,7 +3,7 @@ package commerce
 import (
 	"context"
 
-	db "northframe.dev/northframe/examples/commerce/internal/db/generated"
+	db "github.com/JohnKinyanjui/northframe/examples/commerce/internal/db/generated"
 )
 
 type Store interface {

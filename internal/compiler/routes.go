@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"northframe.dev/northframe/internal/dependencies"
+	"github.com/JohnKinyanjui/northframe/internal/dependencies"
 )
 
 // RouteBuild is the complete generated output for one convention-based routes tree.
@@ -69,8 +69,19 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 	if err != nil {
 		return RouteBuild{}, err
 	}
+	appCSS, err := readAppCSS(routesDirectory)
+	if err != nil {
+		return RouteBuild{}, err
+	}
+	if len(appCSS) > 0 {
+		customCSS = append([][]byte{appCSS}, customCSS...)
+	}
 	if !identifier.MatchString(packageName) {
 		return RouteBuild{}, fmt.Errorf("invalid package name %q", packageName)
+	}
+	errorPage, err := discoverErrorPage(routesDirectory)
+	if err != nil {
+		return RouteBuild{}, err
 	}
 
 	layouts, pages := groupRouteViews(views)
@@ -143,6 +154,36 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 			clientAssets = append(clientAssets, publicAsset{Path: current.ClientModule.Path, Content: current.ClientModule.Source, ContentType: "text/javascript; charset=utf-8"})
 		}
 	}
+	if errorPage != nil {
+		errorPage.Source, err = expandIncludes(errorPage.Source, componentsRoot, nil)
+		if err != nil {
+			return RouteBuild{}, fmt.Errorf("root error page: %w", err)
+		}
+		errorPage.Source, err = prepareErrorPage(errorPage.Source)
+		if err != nil {
+			return RouteBuild{}, err
+		}
+		errorPage.Contract = typeResolver.contract("ApplicationErrorProps", errorPage.Props, filepath.Dir(errorPage.Path), nil)
+		errorPage.Source, errorPage.ClientModule, err = compileClientComponentWithOptions(errorPage.Name, errorPage.Source, clientCompileOptions{
+			Contract: errorPage.Contract, PropsType: "ApplicationErrorProps", Props: errorPage.Props,
+			SourcePath: errorPage.Path, Project: clientProject,
+		})
+		if err != nil {
+			return RouteBuild{}, fmt.Errorf("compile root error page: %w", err)
+		}
+		if err := validateComponentReferences(errorPage.Name, errorPage.Source, componentNames); err != nil {
+			return RouteBuild{}, err
+		}
+		generated, compileErr := compileComponent(packageName, errorPage.Name, errorPage.Source, componentNames)
+		if compileErr != nil {
+			return RouteBuild{}, fmt.Errorf("compile root error page: %w", compileErr)
+		}
+		files["application_error_generated.go"] = generated
+		styleSources = append(styleSources, errorPage.Source)
+		if errorPage.ClientModule != nil {
+			clientAssets = append(clientAssets, publicAsset{Path: errorPage.ClientModule.Path, Content: errorPage.ClientModule.Source, ContentType: "text/javascript; charset=utf-8"})
+		}
+	}
 	for index := range views {
 		view := &views[index]
 		view.Source, err = prepareRouteSource(*view, componentsRoot)
@@ -154,7 +195,7 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 		}
 		view.Source, view.ClientModule, err = compileClientComponentWithOptions(view.Name, view.Source, clientCompileOptions{
 			Contract: view.Contract, PropsType: view.PropsType, Props: view.Props,
-			SourcePath: view.SourcePath, Project: clientProject,
+			SourcePath: view.SourcePath, Project: clientProject, Scoped: view.Kind == "page",
 		})
 		if err != nil {
 			return RouteBuild{}, fmt.Errorf("compile %s %s: %w", view.Directory, view.Kind, err)
@@ -182,7 +223,7 @@ func buildProjectRoutes(routesDirectory, apiDirectory, packageName, routeImportR
 	for _, issue := range classIssues {
 		warnings = append(warnings, fmt.Sprintf("unsupported utility class %q; define it in colocated CSS or use a supported Tailwind utility", issue.Name))
 	}
-	router, err := generateRouter(packageName, pages, layouts, apiRoutes, BuildStyles(styleSources, customCSS), assets, clientAssets)
+	router, err := generateRouter(packageName, pages, layouts, apiRoutes, errorPage, BuildStyles(styleSources, customCSS), assets, clientAssets)
 	if err != nil {
 		return RouteBuild{}, err
 	}

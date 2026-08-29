@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"northframe.dev/northframe/pkg/auth"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/auth"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type Options struct {

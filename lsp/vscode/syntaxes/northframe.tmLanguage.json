@@ -212,6 +212,28 @@
     "expressions": {
       "patterns": [
         {
+          "begin": "(\\$)(\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword.operator.server.northframe" },
+            "2": { "name": "punctuation.section.embedded.begin.northframe" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.northframe" }
+          },
+          "contentName": "source.go",
+          "patterns": [{ "include": "source.go" }]
+        },
+        {
+          "match": "(#)(\\{)([A-Za-z_][A-Za-z0-9_.]*)(\\})",
+          "captures": {
+            "1": { "name": "keyword.operator.client.northframe" },
+            "2": { "name": "punctuation.section.embedded.begin.northframe" },
+            "3": { "name": "variable.other.readwrite.ts.northframe" },
+            "4": { "name": "punctuation.section.embedded.end.northframe" }
+          }
+        },
+        {
           "begin": "(\\{)(?![#/])",
           "beginCaptures": {
             "1": { "name": "punctuation.section.embedded.begin.northframe" }

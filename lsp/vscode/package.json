@@ -2,7 +2,7 @@
   "name": "northframe",
   "displayName": "Northframe",
   "description": "Language support for Northframe .north SSR components.",
-  "version": "0.0.0",
+  "version": "0.1.0-beta",
   "publisher": "northframe",
   "repository": {
     "type": "git",
@@ -37,7 +37,7 @@
   ],
   "main": "./extension.js",
   "scripts": {
-    "check": "node --check extension.js && node --check lsp-client.js && node --check embedded.js",
+    "check": "node --check extension.js && node --check lsp-client.js && node --check server-command.js && node --check embedded.js",
     "test": "node --test test/*.test.js"
   },
   "contributes": {

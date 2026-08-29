@@ -166,6 +166,63 @@ interface Props {
 	}
 }
 
+func TestOrganizePropsImportsAddsMissingPackagesAndSortsImports(t *testing.T) {
+	root := t.TempDir()
+	writeImportTestFile(t, filepath.Join(root, "go.mod"), `module example.test/store
+
+go 1.27
+
+require example.test/uuid v0.0.0
+
+replace example.test/uuid => ./third_party/uuid
+`)
+	writeImportTestFile(t, filepath.Join(root, "third_party", "uuid", "go.mod"), "module example.test/uuid\n\ngo 1.27\n")
+	writeImportTestFile(t, filepath.Join(root, "third_party", "uuid", "uuid.go"), "package uuid\ntype UUID [16]byte\n")
+	writeImportTestFile(t, filepath.Join(root, "internal", "viewmodels", "models.go"), "package viewmodels\ntype Product struct{}\n")
+	component := filepath.Join(root, "web", "components", "card.north")
+	text := `---
+import viewmodels "example.test/store/internal/viewmodels"
+
+interface Props {
+  ID uuid.UUID
+  Item viewmodels.Product
+}
+---
+<article>${Props.ID}</article>`
+	writeImportTestFile(t, component, text)
+	imports := projectImports(documentURI(component))
+	if !containsProjectImport(imports, "uuid", "example.test/uuid") {
+		t.Fatalf("project imports = %#v", imports)
+	}
+
+	got := organizePropsImports(documentURI(component), text)
+	want := `---
+import viewmodels "example.test/store/internal/viewmodels"
+import uuid "example.test/uuid"
+
+interface Props {
+  ID uuid.UUID
+  Item viewmodels.Product
+}
+---
+<article>${Props.ID}</article>`
+	if got != want {
+		t.Fatalf("organizePropsImports() =\n%s\nwant:\n%s", got, want)
+	}
+	if again := organizePropsImports(documentURI(component), got); again != got {
+		t.Fatalf("organizePropsImports is not idempotent:\n%s", again)
+	}
+}
+
+func containsProjectImport(imports []projectImport, alias, path string) bool {
+	for _, imported := range imports {
+		if imported.Alias == alias && imported.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
 func writeImportTestFile(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

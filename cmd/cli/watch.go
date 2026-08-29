@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"northframe.dev/northframe/internal/dependencies"
+	"github.com/JohnKinyanjui/northframe/internal/dependencies"
 )
 
 var errInterrupted = errors.New("interrupted")

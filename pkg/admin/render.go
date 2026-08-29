@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"northframe.dev/northframe/pkg/auth"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/auth"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type renderer struct{ template *template.Template }

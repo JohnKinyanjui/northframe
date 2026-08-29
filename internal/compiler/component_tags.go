@@ -134,6 +134,12 @@ func parseComponentAttributes(source string) ([]componentAttribute, error) {
 			if position >= len(source) {
 				return nil, fmt.Errorf("prop %s is missing a value", name)
 			}
+			if source[position] == '$' {
+				if position+1 >= len(source) || source[position+1] != '{' {
+					return nil, fmt.Errorf("prop %s has an invalid server interpolation", name)
+				}
+				position++
+			}
 			switch source[position] {
 			case '\'', '"':
 				quote := source[position]
@@ -177,7 +183,7 @@ func parseComponentAttributes(source string) ([]componentAttribute, error) {
 				value := source[valueStart:position]
 				if value != "true" && value != "false" {
 					if _, err := strconv.ParseFloat(value, 64); err != nil {
-						return nil, fmt.Errorf("prop %s must use a quoted literal or {expression}", name)
+						return nil, fmt.Errorf("prop %s must use a quoted literal or ${expression}", name)
 					}
 				}
 				attribute.Value = value

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func TestSessionLifecycleUsesOpaqueCookie(t *testing.T) {

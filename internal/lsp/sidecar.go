@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var inferredRouteProp = regexp.MustCompile(`\{\s*Props\.([A-Z][A-Za-z0-9_]*)\s*\}`)
+var inferredRouteProp = regexp.MustCompile(`(?:\$\{|\{)\s*Props\.([A-Z][A-Za-z0-9_]*)\s*\}`)
 
 type propField struct {
 	Name  string

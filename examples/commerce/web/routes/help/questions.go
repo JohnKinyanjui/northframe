@@ -3,7 +3,7 @@ package help
 import (
 	"strings"
 
-	"northframe.dev/northframe/examples/commerce/internal/viewmodels"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/internal/viewmodels"
 )
 
 var questionBank = []viewmodels.Question{

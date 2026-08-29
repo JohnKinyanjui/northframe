@@ -4,7 +4,7 @@ package postgres
 import (
 	"database/sql"
 
-	"northframe.dev/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

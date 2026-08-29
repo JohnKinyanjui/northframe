@@ -48,6 +48,12 @@ func discoverRouteViews(root, routeImportRoot string) ([]routeView, [][]byte, er
 		if extension != ".north" {
 			return nil
 		}
+		if base == "error.north" {
+			if filepath.Dir(path) != root {
+				return fmt.Errorf("%s: error.north currently belongs at the root of web/routes", path)
+			}
+			return nil
+		}
 		view, err := inspectRouteView(root, routeImportRoot, path, base, seenNames, seenPaths)
 		if err != nil {
 			return err
@@ -67,6 +73,18 @@ func readRouteCSS(path, base string) ([]byte, error) {
 		return nil, fmt.Errorf("%s: route CSS must be named page.css or layout.css", path)
 	}
 	return os.ReadFile(path)
+}
+
+func readAppCSS(routesDirectory string) ([]byte, error) {
+	path := filepath.Join(filepath.Dir(routesDirectory), "app.css")
+	contents, err := os.ReadFile(path)
+	if err == nil {
+		return contents, nil
+	}
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("read web/app.css: %w", err)
 }
 
 func inspectRouteView(root, routeImportRoot, path, base string, seenNames, seenPaths map[string]string) (routeView, error) {

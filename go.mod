@@ -1,4 +1,4 @@
-module northframe.dev/northframe
+module github.com/JohnKinyanjui/northframe
 
 go 1.27
 

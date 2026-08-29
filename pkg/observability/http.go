@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type contextKey string

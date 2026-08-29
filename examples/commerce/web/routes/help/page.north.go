@@ -3,8 +3,8 @@ package help
 import (
 	"strings"
 
-	generated "northframe.dev/northframe/examples/commerce/.generated/routes/help"
-	"northframe.dev/northframe/pkg/web"
+	generated "github.com/JohnKinyanjui/northframe/examples/commerce/.generated/routes/help"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func Page(ctx *web.Context) (generated.PageProps, error) {

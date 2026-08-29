@@ -27,7 +27,9 @@ test("client exchanges framed messages with north lsp", async () => {
       position: { line: 0, character: 6 },
     });
     assert.ok(completion.items.some((item) => item.label === "nf-enhance"));
-    assert.ok(notifications.some((item) => item.method === "textDocument/publishDiagnostics"));
+    const diagnostics = notifications.find((item) => item.method === "textDocument/publishDiagnostics");
+    assert.ok(diagnostics);
+    assert.equal(diagnostics.params.version, 1);
   } finally {
     await client.stop();
   }

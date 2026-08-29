@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func generateRouter(packageName string, pages []routeView, layouts map[string]routeView, apiRoutes []apiRoute, styles []byte, assets, clientAssets []publicAsset) ([]byte, error) {
+func generateRouter(packageName string, pages []routeView, layouts map[string]routeView, apiRoutes []apiRoute, errorPage *componentView, styles []byte, assets, clientAssets []publicAsset) ([]byte, error) {
 	sort.Slice(pages, func(i, j int) bool { return pages[i].Path < pages[j].Path })
 	aliases, imports := routeImports(pages, layouts, apiRoutes)
 
@@ -20,11 +20,11 @@ func generateRouter(packageName string, pages []routeView, layouts map[string]ro
 	for _, alias := range aliases {
 		fmt.Fprintf(&output, "\t%s %s\n", alias, strconv.Quote(imports[alias]))
 	}
-	output.WriteString("\t\"northframe.dev/northframe/pkg/web\"\n)\n\n")
+	output.WriteString("\t\"github.com/JohnKinyanjui/northframe/pkg/web\"\n)\n\n")
 	fmt.Fprintf(&output, "const appCSS = %s\n\n", strconv.Quote(string(styles)))
 	writeAssetMap(&output, "publicAssets", assets)
 	writeAssetMap(&output, "clientAssets", clientAssets)
-	writeRouteRegistration(&output, pages, apiRoutes, assets, clientAssets)
+	writeRouteRegistration(&output, pages, apiRoutes, errorPage, assets, clientAssets)
 	for _, page := range pages {
 		writePageMiddleware(&output, page, layouts)
 		writePageRenderer(&output, page, layouts)
@@ -67,8 +67,13 @@ func writeAssetMap(output *bytes.Buffer, name string, assets []publicAsset) {
 	output.WriteString("}\n\n")
 }
 
-func writeRouteRegistration(output *bytes.Buffer, pages []routeView, apiRoutes []apiRoute, assets, clientAssets []publicAsset) {
+func writeRouteRegistration(output *bytes.Buffer, pages []routeView, apiRoutes []apiRoute, errorPage *componentView, assets, clientAssets []publicAsset) {
 	output.WriteString("func Register(app *web.App) {\n")
+	if errorPage != nil {
+		output.WriteString("\tapp.SetErrorRenderer(func(w io.Writer, page web.ErrorPage) error {\n")
+		output.WriteString("\t\treturn RenderApplicationError(w, ApplicationErrorProps{Status: page.Status, Message: page.Message, Path: page.Path, RequestID: page.RequestID})\n")
+		output.WriteString("\t})\n")
+	}
 	output.WriteString("\tapp.HandleFunc(\"GET /_northframe/app.css\", func(w http.ResponseWriter, _ *http.Request) { w.Header().Set(\"Content-Type\", \"text/css; charset=utf-8\"); _, _ = io.WriteString(w, appCSS) })\n")
 	output.WriteString("\tapp.Handle(\"GET /_northframe/\", http.StripPrefix(\"/_northframe/\", web.BrowserHandler()))\n")
 	if len(assets) > 0 {
@@ -122,6 +127,9 @@ func writeRouteRegistration(output *bytes.Buffer, pages []routeView, apiRoutes [
 			}
 		}
 	}
+	if errorPage != nil {
+		output.WriteString("\tapp.HandleFunc(\"GET /\", func(w http.ResponseWriter, r *http.Request) { app.HandleError(w, r, web.NotFound(\"Page not found\")) })\n")
+	}
 	output.WriteString("}\n\n")
 }
 
@@ -142,12 +150,18 @@ func writePageMiddleware(output *bytes.Buffer, page routeView, layouts map[strin
 func writePageRenderer(output *bytes.Buffer, page routeView, layouts map[string]routeView) {
 	fmt.Fprintf(output, "func render%sRoute(w io.Writer, request *http.Request) error {\n", page.Name)
 	output.WriteString("\tcontext := web.ContextFor(request)\n")
-	fmt.Fprintf(output, "\tcontent0 := func(w io.Writer) error { props, err := %s.Page(context); if err != nil { return err }; return Render%s(w, props) }\n", page.ImportAlias, page.Name)
+	fmt.Fprintf(output, "\tcontent0 := func(w io.Writer) error { if _, err := io.WriteString(w, %s); err != nil { return err }; props, err := %s.Page(context); if err != nil { return err }; if err := Render%s(w, props); err != nil { return err }; _, err = io.WriteString(w, %s); return err }\n",
+		strconv.Quote(`<north-route-segment data-north-route-kind="page" data-north-route-segment="`+page.Path+`">`), page.ImportAlias, page.Name, strconv.Quote(`</north-route-segment>`))
 	layoutChain := layoutsForDirectory(page.Directory, layouts)
 	for index := len(layoutChain) - 1; index >= 0; index-- {
 		contentIndex := len(layoutChain) - index
 		layout := layoutChain[index]
-		fmt.Fprintf(output, "\tcontent%d := func(w io.Writer) error { props, err := %s.Layout(context); if err != nil { return err }; return Render%s(w, props, content%d) }\n", contentIndex, layout.ImportAlias, layout.Name, contentIndex-1)
+		if layout.Directory == "." {
+			fmt.Fprintf(output, "\tcontent%d := func(w io.Writer) error { props, err := %s.Layout(context); if err != nil { return err }; return Render%s(w, props, content%d) }\n", contentIndex, layout.ImportAlias, layout.Name, contentIndex-1)
+			continue
+		}
+		fmt.Fprintf(output, "\tcontent%d := func(w io.Writer) error { if _, err := io.WriteString(w, %s); err != nil { return err }; props, err := %s.Layout(context); if err != nil { return err }; if err := Render%s(w, props, content%d); err != nil { return err }; _, err = io.WriteString(w, %s); return err }\n",
+			contentIndex, strconv.Quote(`<north-route-segment data-north-route-kind="layout" data-north-route-segment="`+layout.Directory+`">`), layout.ImportAlias, layout.Name, contentIndex-1, strconv.Quote(`</north-route-segment>`))
 	}
 	fmt.Fprintf(output, "\treturn content%d(w)\n}\n\n", len(layoutChain))
 }

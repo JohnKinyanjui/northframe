@@ -9,12 +9,12 @@ import (
 	"os"
 	"time"
 
-	"northframe.dev/northframe/examples/commerce/.generated/routes"
-	db "northframe.dev/northframe/examples/commerce/internal/db/generated"
-	"northframe.dev/northframe/examples/commerce/services/commerce"
-	"northframe.dev/northframe/pkg/database"
-	"northframe.dev/northframe/pkg/database/postgres"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/.generated/routes"
+	db "github.com/JohnKinyanjui/northframe/examples/commerce/internal/db/generated"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/services/commerce"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database/postgres"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 //go:embed internal/db/migrations/*.sql

@@ -1,0 +1,26 @@
+---
+import site "github.com/JohnKinyanjui/northframe/docs/internal/site"
+
+interface Props {
+    Path string
+    Navigation []site.NavGroup
+}
+---
+
+<nav aria-label="Documentation navigation" class="space-y-7">
+  {for group := range Props.Navigation}
+    <section>
+      <h2 class="mb-2 px-2 text-xs font-bold text-slate-900">${group.Title}</h2>
+      <div class="space-y-0.5">
+        {for item := range group.Items}
+          {if item.Href == Props.Path}
+            <a data-doc-link href="${item.Href}" class="block border-l-2 border-orange-500 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-800">${item.Title}</a>
+          {/if}
+          {if item.Href != Props.Path}
+            <a data-doc-link href="${item.Href}" class="block border-l-2 border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-400 hover:text-slate-950">${item.Title}</a>
+          {/if}
+        {/for}
+      </div>
+    </section>
+  {/for}
+</nav>

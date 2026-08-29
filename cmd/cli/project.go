@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"northframe.dev/northframe/internal/compiler"
+	"github.com/JohnKinyanjui/northframe/internal/compiler"
 )
 
 type projectOptions struct {

@@ -1,8 +1,8 @@
 package routes
 
 import (
-	generated "northframe.dev/northframe/examples/commerce/.generated/routes/root"
-	"northframe.dev/northframe/pkg/web"
+	generated "github.com/JohnKinyanjui/northframe/examples/commerce/.generated/routes/root"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func Layout(*web.Context) (generated.LayoutProps, error) {

@@ -20,8 +20,50 @@ func TestInitializeAdvertisesLanguageFeatures(t *testing.T) {
 	message := decodeFirstFrame(t, output.String())
 	result := message["result"].(map[string]any)
 	capabilities := result["capabilities"].(map[string]any)
-	if capabilities["definitionProvider"] != true || capabilities["documentFormattingProvider"] != true || capabilities["renameProvider"] == nil {
+	if capabilities["definitionProvider"] != true || capabilities["referencesProvider"] != true || capabilities["documentFormattingProvider"] != true || capabilities["renameProvider"] == nil {
 		t.Fatalf("unexpected capabilities: %#v", capabilities)
+	}
+}
+
+func TestDiagnosticsAcceptDollarComponentPropExpressions(t *testing.T) {
+	diagnostics := validateDocument("file:///tmp/Guide.north", `---
+interface Props {
+  Page string
+}
+---
+<DocsPage Page=${Props.Page} />`)
+	if len(diagnostics) != 0 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestComponentPropNavigationFindsDeclarationAndReferences(t *testing.T) {
+	root := t.TempDir()
+	writeImportTestFile(t, filepath.Join(root, "go.mod"), "module example.test/docs\n\ngo 1.27\n")
+	componentPath := filepath.Join(root, "web", "components", "DocsPage.north")
+	writeImportTestFile(t, componentPath, `---
+interface Props {
+  Page string
+}
+---
+<article>${Props.Page}</article>`)
+	routePath := filepath.Join(root, "web", "routes", "page.north")
+	route := `---
+interface Props {
+  Page string
+}
+---
+<DocsPage Page=${Props.Page} />`
+	writeImportTestFile(t, routePath, route)
+	uri := documentURI(routePath)
+	offset := strings.Index(route, "Page=${") + 2
+	target, ok := componentPropAt(uri, route, offset)
+	if !ok || target.Field.Name != "Page" || target.Field.URI != documentURI(componentPath) {
+		t.Fatalf("component prop target = %#v, %v", target, ok)
+	}
+	references := referenceLocations(uri, route, offset)
+	if len(references) != 2 {
+		t.Fatalf("component prop references = %#v, want declaration and invocation", references)
 	}
 }
 
@@ -48,6 +90,19 @@ func TestDiagnosticsWarnForUnsupportedUtilityClass(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestDiagnosticsRecognizeClassesDefinedInProjectAppCSS(t *testing.T) {
+	root := t.TempDir()
+	writeImportTestFile(t, filepath.Join(root, "go.mod"), "module example.test/app\n\ngo 1.27\n")
+	writeImportTestFile(t, filepath.Join(root, "web", "app.css"), ".operations-map { min-height: 100vh; }\n")
+	componentPath := filepath.Join(root, "web", "components", "FleetMap.north")
+	diagnostics := validateDocument(documentURI(componentPath), `<section class="operations-map flex"></section>`)
+	for _, current := range diagnostics {
+		if strings.Contains(current.Message, `unsupported utility class "operations-map"`) {
+			t.Fatalf("diagnostics = %#v", diagnostics)
+		}
 	}
 }
 
@@ -224,7 +279,7 @@ func TestHTMLDirectiveDiagnosticsRequireSafeHTML(t *testing.T) {
 	root := t.TempDir()
 	writeImportTestFile(t, filepath.Join(root, "go.mod"), "module example.test/store\n\ngo 1.27\n")
 	writeImportTestFile(t, filepath.Join(root, "internal", "viewmodels", "models.go"), `package viewmodels
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type Article struct {
 	Content string
 	ContentHTML web.SafeHTML

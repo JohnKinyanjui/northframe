@@ -1,0 +1,4 @@
+[client]
+source = 'web/client'
+
+[client.dependencies]

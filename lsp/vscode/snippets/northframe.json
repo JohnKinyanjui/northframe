@@ -26,6 +26,20 @@
     ],
     "description": "Add compiled TypeScript state"
   },
+  "Server value": {
+    "prefix": "nf-value",
+    "body": [
+      "\\${Props.${1:Value}}"
+    ],
+    "description": "Render an escaped Go SSR value"
+  },
+  "Client value": {
+    "prefix": "nf-client-value",
+    "body": [
+      "#{${1:name}}"
+    ],
+    "description": "Render reactive TypeScript state"
+  },
   "Server conditional": {
     "prefix": "nf-if",
     "body": [

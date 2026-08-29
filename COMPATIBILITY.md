@@ -1,44 +1,71 @@
-# Northframe MVP compatibility contract
+# Northframe beta compatibility contract
 
-Status: **candidate, unversioned**. Northframe must not receive its first release version until every gate below is green and the VS Code extension is accepted by its target registry.
+Status: **v0.1.0-beta**. This is the first public evaluation release. It is not
+`v1` and may contain incompatible changes between beta releases, but changes must
+be documented and should include actionable migration guidance.
 
 ## Supported platform
 
 - Go 1.27 or newer.
-- Linux amd64/arm64, macOS arm64, and Windows amd64 for the `north` CLI and generated applications.
-- PostgreSQL, MySQL, and SQLite through `pkg/database` and their driver adapters.
+- Linux amd64/arm64, macOS arm64, and Windows amd64 are intended targets for the
+  `north` CLI and generated applications.
+- PostgreSQL, MySQL, and SQLite are supported through `pkg/database` adapters.
 - A modern browser with ES modules, CustomEvent, Fetch, and WebSocket support.
 
-## Stable application contract
+## Beta application contract
 
-- Projects use `web/routes`, `web/components`, `web/client`, and `web/public`; protected compiler output lives in root `.generated/routes`.
-- `page.north`, `layout.north`, `page.north.go`, and `layout.north.go` define filesystem routes, SSR views, typed loaders, actions, and middleware.
-- `routes/api/**/route.go` supports method handlers and `websocket.go` supports WebSocket routes.
-- Astro-style `---` frontmatter accepts Go imports and exactly one `interface Props` contract. Exported prop names, Go types, and Go default expressions are type checked.
-- SSR uses `{Props.Value}`, `{if ...}`, `{for item := range ...}`, and `{html SafeHTML}`. Browser state uses `<script lang="ts">`, `{#state}`, bindings, and `on:event`.
-- Independent PascalCase components support typed props, default props, default/named slots, isolated TypeScript, and bubbling typed custom events.
-- Native forms remain usable without JavaScript; `nf-enhance` adds pending, field-error, message, and redirect behavior without changing the Go action contract.
+- Projects use `web/routes`, `web/components`, `web/client`, `web/public`, and
+  optional `web/app.css`; protected compiler output lives in `.generated/routes`.
+- `page.north` and `page.north.go` define a page; `layout.north` and
+  `layout.north.go` define a layout. Filesystem directories determine URLs.
+- `web/routes/api/**/route.go` exposes method functions such as `GET`, `POST`,
+  `PUT`, `PATCH`, and `DELETE` using `*web.Context`.
+- Astro-style `---` frontmatter accepts Go imports and one `interface Props`
+  contract. The editor resolves available Go imports on save.
+- `${expression}` renders escaped Go data during SSR. `{if ...}` and
+  `{for item := range ...}` compile to Go control flow. `{html value}` accepts
+  only `web.SafeHTML`.
+- `<script lang="ts">` owns optional browser code. `#{expression}` reads client
+  state, and `on:event={handler}` attaches browser event handlers.
+- PascalCase components support typed props, defaults, slots, isolated
+  TypeScript state, and bubbling custom events without manual component imports.
+- Native forms work without JavaScript. `nf-enhance` and HTMX-style navigation
+  progressively improve loading, validation, history, and partial updates while
+  retaining ordinary HTTP behavior.
 
-## Stable CLI contract
+## Beta CLI contract
 
-`north create`, `generate`, `run`, `build`, `db generate/create/migrate/rollback/seed/status/verify`, `add/remove/update`, `upgrade`, `deploy check/docker`, and `lsp` are MVP commands. Command removal or incompatible flag/default changes require an explicit migration note.
+The beta includes `north create`, `generate`, `run`, `build`, `db`,
+`add/remove/update`, `upgrade`, `deploy`, and `lsp`. A command can change before
+`v1`, but removal or incompatible default changes require release notes and a
+migration path.
 
-## Runtime contract
+## Runtime and security boundary
 
-- Generated SSR escapes ordinary values and accepts raw markup only through `web.SafeHTML`.
-- CSRF protection, bounded forms/uploads, safe errors, public-asset caching, WebSocket origin/auth/limit/shutdown behavior, opaque sessions/permissions, and internal admin CRUD remain tested public behavior.
-- Optional operations packages expose adapter boundaries for cache, mail, jobs, schedules, logging, and trace correlation. A deployment stays one Go executable and does not require Node at runtime.
+- Ordinary interpolation is escaped; raw markup requires the concrete
+  `web.SafeHTML` type.
+- Applications remain responsible for authentication policy, authorization,
+  validation, database schema, service boundaries, and secret management.
+- Northframe provides optional sessions, CSRF, bounded forms/uploads, safe error
+  rendering, asset caching, WebSockets, admin resources, cache, mail, jobs, and
+  observability adapters without forcing an application database model.
+- A production deployment is a normal Go executable and does not require Node,
+  Deno, npm, or a JavaScript server runtime.
 
-## Release gates
+## Versioning during beta
 
-Before the first version is assigned:
+- Pin exact tags such as `v0.1.0-beta` in repeatable builds.
+- Never edit `.generated`; regenerate after upgrading the CLI.
+- Use `north upgrade --check`, `north generate`, `go test ./...`, and
+  `north deploy check` before accepting a new beta.
+- The VS Code extension and CLI should use the same release family. Restart the
+  language server and development server after changing the CLI.
 
-1. `go test ./...`, `go test -race ./...`, `go vet ./...`, and `govulncheck ./...` pass.
-2. Calculator, Commerce, and the production TopDuka acceptance application build.
-3. TopDuka migration parity and core interaction tests pass.
-4. Linux amd64/arm64, Windows amd64, and macOS arm64 builds pass.
-5. `north deploy check` passes on TopDuka.
-6. The unversioned VS Code package is installed and tested locally.
-7. A publisher credential is supplied and the extension is accepted by Marketplace/Open VSX; only then is the same first version assigned to the CLI/module documentation and extension package.
+## Gates for a stable release
 
-Until all seven gates pass, `0.0.0` means “unreleased candidate,” not a published semantic version.
+Before `v1.0.0`, Northframe still needs sustained compatibility testing,
+cross-platform builds, security review, race and vulnerability checks, editor
+registry publication, production migration evidence, performance baselines, and
+clear deprecation policy. Passing the beta test suite is evidence that the
+current source is coherent; it is not a claim that all stable-release gates are
+complete.

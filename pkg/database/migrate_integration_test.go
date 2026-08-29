@@ -5,8 +5,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"northframe.dev/northframe/pkg/database"
-	"northframe.dev/northframe/pkg/database/sqlite"
+	"github.com/JohnKinyanjui/northframe/pkg/database"
+	"github.com/JohnKinyanjui/northframe/pkg/database/sqlite"
 )
 
 func TestSQLiteMigrationIsAppliedExactlyOnce(t *testing.T) {

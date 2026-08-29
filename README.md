@@ -10,9 +10,20 @@
 
 Northframe is an experimental Laravel/Django-style framework for native Go SSR. It compiles structured `.north` views into a small generated Go layer, generates routes from the filesystem, embeds its browser runtime and CSS, and deploys as one executable.
 
-The project is deliberately unversioned while the [MVP compatibility contract](COMPATIBILITY.md) is being proven. `0.0.0` on local editor packages means unreleased candidate, not a published release.
+The first public beta is `v0.1.0-beta`. It is suitable for evaluation, prototypes, and migration testing, but its APIs may still change before `v1.0.0`. Read the [beta compatibility contract](COMPATIBILITY.md) before choosing it for production.
 
 Applications do not need Node, Deno, npm, `package.json`, Svelte, or a JavaScript server runtime.
+
+## Built with Northframe
+
+These applications are rendered by Go, styled by Northframe's built-in utility compiler, and enhanced with browser TypeScript only where interaction needs it.
+
+<p align="center">
+  <img src="assets/showcase-commerce.jpg" alt="Relay Commerce inventory built with Northframe" width="49%">
+  <img src="assets/showcase-calculator.jpg" alt="Interactive calculator built with Northframe" width="49%">
+</p>
+
+<p align="center"><sub>Relay Commerce · typed PostgreSQL inventory &nbsp;&nbsp;|&nbsp;&nbsp; Calculator · client interaction with native Go SSR</sub></p>
 
 ## Requirements
 
@@ -21,9 +32,11 @@ Applications do not need Node, Deno, npm, `package.json`, Svelte, or a JavaScrip
 ## Install the command
 
 ```sh
-go build -o "$(go env GOPATH)/bin/north" ./cmd/cli
-north version
+go install github.com/JohnKinyanjui/northframe/cmd/cli@v0.1.0-beta
+north help
 ```
+
+Go installs `north` into `GOBIN`, or into `$(go env GOPATH)/bin` when `GOBIN` is empty. Add that directory to your `PATH` if the command is not found. Contributors working from a Northframe checkout can instead run `go install ./cmd/cli`.
 
 The CLI provides the application workflow:
 
@@ -97,11 +110,15 @@ Every `page.north` requires a sibling `page.north.go`; every `layout.north` requ
 The server shares the production compiler parser and currently provides:
 
 - live syntax and layout diagnostics
-- completion for typed `PageProps`/`LayoutProps` fields and template directives
-- hover information and go-to-definition from an expression to its Go props field
-- document symbols and formatting
+- completion for typed props, imported Go types, component tags, component attributes, and template directives
+- hover, go-to-definition, references, and rename support across props, loop values, and components
+- embedded HTML, TypeScript, Emmet, and Tailwind intelligence
+- safe whole-document formatting for HTML, TypeScript, Go-shaped control blocks, and `Props` contracts
+- save-time Go import resolution and sorting inside `---` frontmatter
 
 Northframe applications still require no Node process, editor-local parser, or `package.json`. VS Code itself requires a `package.json` manifest inside the extension directory, but that tooling file never enters an application. The colocated `.north.go` file continues to use the normal Go language server.
+
+On save, the extension can resolve a missing qualifier such as `uuid.UUID` from the standard library, the current module, or dependencies already present in `go.mod`. It never runs `go get` or silently changes application dependencies. Add a new dependency explicitly first, then save the `.north` file to organize its import.
 
 ## What is generated
 
@@ -125,7 +142,7 @@ Generated props mirror the handwritten route tree under `.generated/routes`. Han
 For simple rendered values, Northframe infers a string prop directly from the template:
 
 ```html
-<h1>{Props.Title}</h1>
+<h1>${Props.Title}</h1>
 ```
 
 The loader uses the generated type without declaring a struct:
@@ -152,7 +169,7 @@ interface Props {
 
 <ul>
   {for user := range Props.Users}
-    <li>{user.Name}</li>
+    <li>${user.Name}</li>
   {/for}
 </ul>
 ```
@@ -165,7 +182,7 @@ package users
 
 import (
     db "example.test/app/internal/db/generated"
-    "northframe.dev/northframe/pkg/web"
+    "github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func Page(ctx *web.Context) (PageProps, error) {
@@ -185,7 +202,7 @@ routes.Register(app)
 http.ListenAndServe(":8080", app)
 ```
 
-Northframe emits `PageProps` into the matching `.generated/routes/<route>/props_generated.go`, and the renderer and loader compile against that same type. A renamed, missing, or incompatible field fails at `go build`. `{Props.Name}` is an HTML-escaped Go value. `{if Props.Condition}` and `{for item := range Props.Items}` become native Go control flow and accept Go expressions. Generated renderers are formatted with `gofmt`. Existing handwritten props structs remain supported during migration, but a route must use either the template contract or the handwritten struct—not both.
+Northframe emits `PageProps` into the matching `.generated/routes/<route>/props_generated.go`, and the renderer and loader compile against that same type. A renamed, missing, or incompatible field fails at `go build`. `${Props.Name}` is an HTML-escaped Go value. `{if Props.Condition}` and `{for item := range Props.Items}` become native Go control flow and accept Go expressions. Generated renderers are formatted with `gofmt`. Existing handwritten props structs remain supported during migration, but a route must use either the template contract or the handwritten struct—not both.
 
 Already-sanitized rich text uses `{html Props.ContentHTML}` and requires the concrete `web.SafeHTML` type. Northframe does not accept an ordinary string at this boundary: sanitize with an application allow-list first, then call `web.SafeHTMLFromSanitized(cleanHTML)`. This keeps normal interpolation escaped while supporting trusted CMS and editor output.
 
@@ -408,7 +425,7 @@ package notifications
 import (
     "time"
 
-    "northframe.dev/northframe/pkg/web"
+    "github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func WebSocketOptions() web.SocketOptions {
@@ -559,12 +576,12 @@ function toggle(): void {
 }
 </script>
 
-<button type="button" on:click={toggle} aria-expanded={#open}>Menu</button>
-<nav show={#open}>Hello {#name}</nav>
-<input bind:value={#name}>
+<button type="button" on:click={toggle} aria-expanded=#{open}>Menu</button>
+<nav show=#{open}>Hello #{name}</nav>
+<input bind:value=#{name}>
 ```
 
-The namespaces are deliberate: `{Props.Name}` reads typed Go SSR data, while `{#name}` reads TypeScript browser state. The reserved TypeScript `props` value follows the generated `PageProps` or `LayoutProps` contract, is serialized as safe inert JSON during SSR, and is typed in `northframe_contracts_generated.ts`. `on:event={handler}` rerenders after synchronous and asynchronous handlers. `show={#state}`, `bind:value={#state}`, `class:name={#state}`, reactive ARIA/data attributes, and text bindings are compiled rather than interpreted at runtime.
+The namespaces are deliberate: `${Props.Name}` reads typed Go SSR data, while `#{name}` reads TypeScript browser state. The reserved TypeScript `props` value follows the generated `PageProps` or `LayoutProps` contract, is serialized as safe inert JSON during SSR, and is typed in `northframe_contracts_generated.ts`. `on:event={handler}` rerenders after synchronous and asynchronous handlers. `show=#{state}`, `bind:value=#{state}`, `class:name=#{state}`, reactive ARIA/data attributes, and text bindings are compiled rather than interpreted at runtime.
 
 ### JavaScript dependencies without package.json
 
@@ -607,14 +624,14 @@ let open: boolean = false;
 function toggle(): void { open = !open; }
 </script>
 
-<button on:click={toggle}>{Props.Title}</button>
-<section show={#open}><slot /></section>
+<button on:click={toggle}>${Props.Title}</button>
+<section show=#{open}><slot /></section>
 ```
 
 Use it from a page, layout, or another component:
 
 ```html
-<Panel Title={Props.PageTitle}>
+<Panel Title=${Props.PageTitle}>
   <p>This child markup becomes the component slot.</p>
 </Panel>
 ```
@@ -639,7 +656,7 @@ function completed(event: CustomEvent<{ id: string }>): void {
   console.log(event.detail.id);
 }
 </script>
-<Dialog ID={Props.ID} on:complete={completed} />
+<Dialog ID=${Props.ID} on:complete={completed} />
 ```
 
 Everything below `web/public/` is embedded into the generated router and served from `/public/` with content types, immutable caching, and ETags. No files are required beside the production executable.
@@ -694,8 +711,8 @@ Northframe has opt-in driver packages, so an application only compiles the engin
 
 ```go
 import (
-    "northframe.dev/northframe/pkg/database"
-    "northframe.dev/northframe/pkg/database/sqlite"
+    "github.com/JohnKinyanjui/northframe/pkg/database"
+    "github.com/JohnKinyanjui/northframe/pkg/database/sqlite"
 )
 
 db, err := sqlite.Open("file:app.db?_pragma=foreign_keys(1)", database.Pool{
@@ -778,8 +795,8 @@ Northframe is now a useful framework prototype, but it is not production-complet
 - full TypeScript semantic checking beyond Northframe's supported state subset
 - JavaScript-package CSS imports, Node built-ins, native addons, lifecycle scripts, and multi-version dependency graphs
 - component package distribution (named slots, typed default props, and bubbling component events are available now)
-- a filesystem `error.north` convention (custom generated error components are
-  already supported through `SetErrorRenderer`)
+- nested route-level error boundaries (a root `web/routes/error.north` convention
+  already handles safe application errors and unknown GET routes)
 - streaming responses and advanced response metadata
 - a complete Tailwind-compatible utility surface, arbitrary values, and diagnostics
 - Marketplace/Open VSX publishing for the included VS Code extension

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${Props.Status} · Northframe documentation</title>
+  </head>
+
+  <body class="min-h-screen bg-[#07111f] text-white antialiased">
+    <main class="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-20">
+      <section class="w-full rounded-3xl border border-white/10 bg-white/8 p-8 shadow-2xl sm:p-12">
+        <img
+          src="/logo.png"
+          alt="Northframe"
+          width="56"
+          height="56"
+          class="mb-8 h-14 w-14 object-contain"
+        />
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-sky-400">Northframe documentation · ${Props.Status}
+        </p>
+        <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-6xl">${Props.Message}</h1>
+        <p class="mt-5 max-w-xl text-lg leading-8 text-slate-400">We could not serve <code
+          class="rounded bg-white/10 px-2 py-1 text-sky-400">${Props.Path}</code>. The link may have moved or the page
+        may have failed while rendering.</p>
+      <div class="mt-9 flex flex-wrap gap-3">
+        <a
+          href="/"
+          class="rounded-full bg-orange-500 px-5 py-3 font-bold text-slate-950 transition hover:bg-orange-400"
+          >Back to
+          documentation</a>
+          <a
+            href="https://github.com/JohnKinyanjui/northframe/issues"
+            class="rounded-full border border-white/15 px-5 py-3 font-bold text-white transition hover:bg-white/10"
+            >Report
+            an issue</a>
+          </div>
+          {if Props.RequestID}
+            <p class="mt-8 text-xs text-slate-500">Request ID: ${Props.RequestID}</p>
+          {/if}
+        </section>
+      </main>
+    </body>
+
+  </html>

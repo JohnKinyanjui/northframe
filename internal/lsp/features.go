@@ -29,6 +29,12 @@ func (current *server) hover(id json.RawMessage, raw json.RawMessage) error {
 		value += "\n\nUse **Go to Definition** to open the declaring Go file."
 		return current.reply(id, map[string]any{"contents": map[string]string{"kind": "markdown", "value": value}})
 	}
+	if target, ok := componentPropAt(params.TextDocument.URI, text, offset); ok {
+		return current.reply(id, map[string]any{
+			"contents": map[string]string{"kind": "markdown", "value": "### `" + target.Component.Name + "." + target.Field.Name + "`\n\n```go\n" + target.Field.Name + " " + target.Field.Type + "\n```\n\nTyped component input. Use **Go to Definition** to open its declaration and **Find All References** to find callers."},
+			"range":    wordRange(text, offset),
+		})
+	}
 	if value, ok := templateValueAt(params.TextDocument.URI, text, offset); ok {
 		declaration := value.Name + " " + value.Type
 		markdown := "### Typed Go value\n\n```go\n" + declaration + "\n```"
@@ -46,7 +52,7 @@ func (current *server) hover(id json.RawMessage, raw json.RawMessage) error {
 	}
 	if field, ok := findDocumentProp(params.TextDocument.URI, text, propWord); ok {
 		return current.reply(id, map[string]any{
-			"contents": map[string]string{"kind": "markdown", "value": "### Server property\n\n```go\n" + field.Name + " " + field.Type + "\n```\n\nA type-safe value supplied by the route's Go loader and rendered during SSR. Reference it in markup as `{Props." + field.Name + "}`."},
+			"contents": map[string]string{"kind": "markdown", "value": "### Server property\n\n```go\n" + field.Name + " " + field.Type + "\n```\n\nA type-safe value supplied by the route's Go loader and rendered during SSR. Reference it in markup as `${Props." + field.Name + "}`."},
 		})
 	}
 	if found, ok := findComponent(params.TextDocument.URI, word); ok {
@@ -88,11 +94,11 @@ type hoverTopic struct {
 var hoverTopics = []hoverTopic{
 	{
 		regexp.MustCompile(`interface\s+Props\s*\{`),
-		"### Typed server Props\n\nAstro-style `---` frontmatter is a declarative Go type contract. Put Go imports first, then declare `interface Props`; Northframe generates `PageProps`, `LayoutProps`, or component props.\n\n```north\n---\nimport uuid \"github.com/google/uuid\"\nimport viewmodels \"example/internal/viewmodels\"\n\ninterface Props {\n  ID uuid.UUID\n  Items []viewmodels.Item\n}\n---\n```\n\nStandard-library, `go.mod` dependency, and project types support automatic imports, completion, hover, and Go to Definition. Executable Go functions stay in `.north.go` loaders or ordinary Go packages. Use prop values in markup as `{Props.ID}`. Browser state remains in Svelte-style `<script lang=\"ts\">`.",
+		"### Typed server Props\n\nAstro-style `---` frontmatter is a declarative Go type contract. Put Go imports first, then declare `interface Props`; Northframe generates `PageProps`, `LayoutProps`, or component props.\n\n```north\n---\nimport uuid \"github.com/google/uuid\"\nimport viewmodels \"example/internal/viewmodels\"\n\ninterface Props {\n  ID uuid.UUID\n  Items []viewmodels.Item\n}\n---\n```\n\nStandard-library, `go.mod` dependency, and project types support automatic imports, completion, hover, and Go to Definition. Executable Go functions stay in `.north.go` loaders or ordinary Go packages. Use prop values in markup as `${Props.ID}`. Browser state remains in `<script lang=\"ts\">`.",
 	},
 	{
 		regexp.MustCompile(`<script\b[^>]*\blang\s*=\s*["']ts["'][^>]*>`),
-		"### Browser TypeScript\n\n`<script lang=\"ts\">` declares page- or component-local client state. Northframe type-checks and compiles it to JavaScript—no WebAssembly is required.\n\nReference variables with `{#name}` and attach functions with attributes such as `on:click={handler}`.",
+		"### Browser TypeScript\n\n`<script lang=\"ts\">` declares page- or component-local client state. Northframe type-checks and compiles it to JavaScript—no WebAssembly is required.\n\nReference variables with `#{name}` and attach functions with attributes such as `on:click={handler}`.",
 	},
 	{
 		regexp.MustCompile(`\{for\b[^}]*\}`),
@@ -123,12 +129,12 @@ var hoverTopics = []hoverTopic{
 		"### Component slot\n\n`<slot />` renders child markup passed by a layout or parent component as a native Go fragment.",
 	},
 	{
-		regexp.MustCompile(`\{\s*(?:Props\.)?[A-Za-z_][A-Za-z0-9_.]*\s*\}`),
-		"### Go server expression\n\n`{Props.Value}` escapes and renders typed Go data during SSR. Loop locals use normal Go names, for example `{item.Name}`.",
+		regexp.MustCompile(`(?:\$\{|\{)\s*(?:Props\.)?[A-Za-z_][A-Za-z0-9_.]*\s*\}`),
+		"### Go server expression\n\n`${Props.Value}` escapes and renders typed Go data during SSR. Loop locals use normal Go names, for example `${item.Name}`. `$` always means server-owned Go data.",
 	},
 	{
-		regexp.MustCompile(`\{#[A-Za-z_][A-Za-z0-9_.]*\}`),
-		"### Client expression\n\n`{#value}` renders reactive TypeScript state in the browser. `#` always means client-owned state; Northframe compiles it to JavaScript without WebAssembly.",
+		regexp.MustCompile(`(?:#\{[A-Za-z_][A-Za-z0-9_.]*\}|\{#[A-Za-z_][A-Za-z0-9_.]*\})`),
+		"### Client expression\n\n`#{value}` renders reactive TypeScript state in the browser. `#` always means client-owned state; Northframe compiles it to JavaScript without WebAssembly.",
 	},
 	{
 		regexp.MustCompile(`on:[A-Za-z][A-Za-z0-9_-]*`),
@@ -140,15 +146,15 @@ var hoverTopics = []hoverTopic{
 	},
 	{
 		regexp.MustCompile(`bind:value`),
-		"### Two-way value binding\n\n`bind:value={#name}` keeps an input's value and a TypeScript state variable synchronized.",
+		"### Two-way value binding\n\n`bind:value=#{name}` keeps an input's value and a TypeScript state variable synchronized.",
 	},
 	{
 		regexp.MustCompile(`class:[A-Za-z_][A-Za-z0-9_-]*`),
-		"### Reactive class\n\n`class:name={#enabled}` adds or removes one CSS class from a client-state boolean.",
+		"### Reactive class\n\n`class:name=#{enabled}` adds or removes one CSS class from a client-state boolean.",
 	},
 	{
 		regexp.MustCompile(`\bshow\s*=`),
-		"### Reactive visibility\n\n`show={#open}` toggles the element's native `hidden` state from a TypeScript value.",
+		"### Reactive visibility\n\n`show=#{open}` toggles the element's native `hidden` state from a TypeScript value.",
 	},
 	{
 		regexp.MustCompile(`nf-enhance`),
@@ -205,20 +211,20 @@ func (current *server) completion(id json.RawMessage, raw json.RawMessage) error
 	}
 	items := []map[string]any{
 		{"label": "Props frontmatter", "kind": 15, "insertText": "---\n${1:import models \"example/internal/models\"}\n\ninterface Props {\n\t${2:Title} ${3:string}\n}\n---\n", "insertTextFormat": 2, "detail": "Go imports and typed server props"},
-		{"label": "{Props.Value}", "kind": 15, "insertText": "{Props.${1:Value}}", "insertTextFormat": 2, "detail": "Escaped Go SSR value"},
+		{"label": "${Props.Value}", "kind": 15, "insertText": "\\${Props.${1:Value}}", "insertTextFormat": 2, "detail": "Escaped Go SSR value"},
 		{"label": "{html}", "kind": 15, "insertText": "{html Props.${1:ContentHTML}}", "insertTextFormat": 2, "detail": "Render a typed web.SafeHTML value"},
-		{"label": "{#state}", "kind": 15, "insertText": "{#${1:name}}", "insertTextFormat": 2, "detail": "Reactive TypeScript value"},
+		{"label": "#{state}", "kind": 15, "insertText": "#{${1:name}}", "insertTextFormat": 2, "detail": "Reactive TypeScript value"},
 		{"label": "{if}", "kind": 15, "insertText": "{if Props.${1:Condition}}\n\t$0\n{/if}", "insertTextFormat": 2, "detail": "Go server condition"},
 		{"label": "{for}", "kind": 15, "insertText": "{for ${1:item} := range Props.${2:Items}}\n\t$0\n{/for}", "insertTextFormat": 2, "detail": "Go server range loop"},
 		{"label": "{#include}", "kind": 15, "insertText": "{#include $0}", "insertTextFormat": 2, "detail": "Static component include"},
-		{"label": "<Component />", "kind": 7, "insertText": "<${1:Component} ${2:Prop}={Props.${3:Value}} />", "insertTextFormat": 2, "detail": "Independent typed component"},
+		{"label": "<Component />", "kind": 7, "insertText": "<${1:Component} ${2:Prop}=\\${Props.${3:Value}} />", "insertTextFormat": 2, "detail": "Independent typed component"},
 		{"label": "<slot />", "kind": 15, "insertText": "<slot />", "detail": "Layout content slot"},
 		{"label": "<script lang=\"ts\">", "kind": 15, "insertText": "<script lang=\"ts\">\nlet ${1:open}: boolean = false;\n</script>", "insertTextFormat": 2, "detail": "Compiled route TypeScript"},
 		{"label": "on:click", "kind": 10, "insertText": "on:click={${1:handler}}", "insertTextFormat": 2, "detail": "TypeScript event handler"},
 		{"label": "dispatch", "kind": 3, "insertText": "dispatch(\"${1:event}\", ${2:detail});", "insertTextFormat": 2, "detail": "Emit a bubbling component CustomEvent"},
-		{"label": "show", "kind": 10, "insertText": "show={#${1:open}}", "insertTextFormat": 2, "detail": "Reactive visibility binding"},
-		{"label": "bind:value", "kind": 10, "insertText": "bind:value={#${1:value}}", "insertTextFormat": 2, "detail": "Two-way TypeScript state binding"},
-		{"label": "class:name", "kind": 10, "insertText": "class:${1:active}={#${2:enabled}}", "insertTextFormat": 2, "detail": "Reactive class binding"},
+		{"label": "show", "kind": 10, "insertText": "show=#{${1:open}}", "insertTextFormat": 2, "detail": "Reactive visibility binding"},
+		{"label": "bind:value", "kind": 10, "insertText": "bind:value=#{${1:value}}", "insertTextFormat": 2, "detail": "Two-way TypeScript state binding"},
+		{"label": "class:name", "kind": 10, "insertText": "class:${1:active}=#{${2:enabled}}", "insertTextFormat": 2, "detail": "Reactive class binding"},
 		{"label": "nf-enhance", "kind": 10, "insertText": "nf-enhance", "detail": "Progressively enhance a POST form"},
 		{"label": "nf-loading", "kind": 10, "insertText": "nf-loading hidden", "detail": "Visible while an enhanced form is pending"},
 		{"label": "nf-idle", "kind": 10, "insertText": "nf-idle", "detail": "Visible while an enhanced form is idle"},
@@ -228,13 +234,14 @@ func (current *server) completion(id json.RawMessage, raw json.RawMessage) error
 	items = append(items, goTypeCompletionItems(params.TextDocument.URI, text, positionToByteOffset(text, params.Position))...)
 	items = append(items, templateFieldCompletionItems(params.TextDocument.URI, text, positionToByteOffset(text, params.Position))...)
 	items = append(items, clientImportCompletionItems(params.TextDocument.URI, text, positionToByteOffset(text, params.Position))...)
+	items = append(items, componentPropCompletionItems(params.TextDocument.URI, text, positionToByteOffset(text, params.Position))...)
 	for _, field := range documentProps(params.TextDocument.URI, text) {
 		items = append(items, map[string]any{"label": field.Name, "kind": 5, "detail": field.Type + " — typed route property"})
 	}
 	for _, component := range projectComponents(params.TextDocument.URI) {
 		var attributes []string
 		for index, prop := range component.Props {
-			attributes = append(attributes, prop+"={Props.${"+strconv.Itoa(index+1)+":Value}}")
+			attributes = append(attributes, prop+"=\\${Props.${"+strconv.Itoa(index+1)+":Value}}")
 		}
 		ending := " />"
 		if component.HasSlot {
@@ -262,6 +269,9 @@ func (current *server) definition(id json.RawMessage, raw json.RawMessage) error
 	offset := positionToByteOffset(text, params.Position)
 	if symbol, ok := importedGoTypeAt(params.TextDocument.URI, text, offset); ok {
 		return current.reply(id, map[string]any{"uri": symbol.URI, "range": symbol.Range})
+	}
+	if target, ok := componentPropAt(params.TextDocument.URI, text, offset); ok {
+		return current.reply(id, map[string]any{"uri": target.Field.URI, "range": target.Field.Range})
 	}
 	if value, ok := templateValueAt(params.TextDocument.URI, text, offset); ok && value.URI != "" {
 		return current.reply(id, map[string]any{"uri": value.URI, "range": value.Range})
@@ -316,6 +326,21 @@ func (current *server) formatting(id json.RawMessage, raw json.RawMessage) error
 		return current.reply(id, []any{})
 	}
 	return current.reply(id, []map[string]any{{"range": fullDocumentRange(text), "newText": formatted}})
+}
+
+func (current *server) organizeImports(id json.RawMessage, raw json.RawMessage) error {
+	var params struct {
+		TextDocument versionedTextDocument `json:"textDocument"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return err
+	}
+	text := current.document(params.TextDocument.URI)
+	organized := organizePropsImports(params.TextDocument.URI, text)
+	if organized == text {
+		return current.reply(id, []any{})
+	}
+	return current.reply(id, []map[string]any{{"range": fullDocumentRange(text), "newText": organized}})
 }
 
 func formatDocument(text string) string {

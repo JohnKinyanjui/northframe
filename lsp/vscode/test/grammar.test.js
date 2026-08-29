@@ -38,3 +38,13 @@ test("Go server directives embed Go grammar", () => {
   assert.equal(component.match.startsWith("(</?)"), true);
   assert.equal(component.captures[2].name, "support.class.component.northframe");
 });
+
+test("server and client interpolation use distinct runtime colors", () => {
+  const expressions = grammar.repository.expressions.patterns;
+  const server = expressions.find((pattern) => pattern.begin === "(\\$)(\\{)");
+  const client = expressions.find((pattern) => pattern.match === "(#)(\\{)([A-Za-z_][A-Za-z0-9_.]*)(\\})");
+  assert.equal(server.beginCaptures[1].name, "keyword.operator.server.northframe");
+  assert.equal(server.contentName, "source.go");
+  assert.equal(client.captures[1].name, "keyword.operator.client.northframe");
+  assert.equal(client.captures[3].name, "variable.other.readwrite.ts.northframe");
+});

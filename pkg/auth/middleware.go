@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 const sessionLocal = "northframe.auth.session"

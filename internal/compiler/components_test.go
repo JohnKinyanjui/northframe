@@ -18,6 +18,19 @@ func TestComponentTagsCompileTypedPropsAndSlots(t *testing.T) {
 	}
 }
 
+func TestComponentTagsSupportDollarServerProps(t *testing.T) {
+	generated, err := Compile("routes", "page", []byte(`<Card Title=${Props.Title} Count=${Props.Count} />`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := string(generated)
+	for _, expected := range []string{`Title: props.Title`, `Count: props.Count`} {
+		if !strings.Contains(result, expected) {
+			t.Errorf("generated component call does not contain %q\n%s", expected, result)
+		}
+	}
+}
+
 func TestHTMLDirectiveCompilesToTypedSafeWriter(t *testing.T) {
 	generated, err := Compile("routes", "page", []byte(`<article>{html Props.Content}</article>`))
 	if err != nil {

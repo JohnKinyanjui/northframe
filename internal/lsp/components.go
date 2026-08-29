@@ -25,6 +25,14 @@ type projectComponent struct {
 	HasSlot bool
 }
 
+type componentPropTarget struct {
+	Component projectComponent
+	Field     propField
+}
+
+var componentOpenTag = regexp.MustCompile(`(?s)<([A-Z][A-Za-z0-9_]*)\b[^>]*>`)
+var componentAttributeName = regexp.MustCompile(`\b([A-Z][A-Za-z0-9_]*)\s*=`)
+
 func projectComponents(uri string) []projectComponent {
 	root := componentsRoot(documentPath(uri))
 	if root == "" {
@@ -146,4 +154,75 @@ func findComponent(uri, name string) (projectComponent, bool) {
 		}
 	}
 	return projectComponent{}, false
+}
+
+func componentPropAt(uri, source string, offset int) (componentPropTarget, bool) {
+	for _, tag := range componentOpenTag.FindAllStringSubmatchIndex(source, -1) {
+		if len(tag) < 4 || offset < tag[0] || offset > tag[1] {
+			continue
+		}
+		component, ok := findComponent(uri, source[tag[2]:tag[3]])
+		if !ok {
+			return componentPropTarget{}, false
+		}
+		tagSource := source[tag[0]:tag[1]]
+		for _, attribute := range componentAttributeName.FindAllStringSubmatchIndex(tagSource, -1) {
+			start, end := tag[0]+attribute[2], tag[0]+attribute[3]
+			if offset < start || offset > end {
+				continue
+			}
+			contents, err := os.ReadFile(component.Path)
+			if err != nil {
+				return componentPropTarget{}, false
+			}
+			for _, field := range templateProps(documentURI(component.Path), string(contents)) {
+				if field.Name == source[start:end] {
+					return componentPropTarget{Component: component, Field: field}, true
+				}
+			}
+		}
+		return componentPropTarget{}, false
+	}
+	return componentPropTarget{}, false
+}
+
+func componentPropCompletionItems(uri, source string, offset int) []map[string]any {
+	if offset < 0 || offset > len(source) {
+		return nil
+	}
+	start := strings.LastIndexByte(source[:offset], '<')
+	if start < 0 || strings.LastIndexByte(source[:offset], '>') > start {
+		return nil
+	}
+	nameMatch := regexp.MustCompile(`^<([A-Z][A-Za-z0-9_]*)\b`).FindStringSubmatch(source[start:offset])
+	if len(nameMatch) != 2 {
+		return nil
+	}
+	component, ok := findComponent(uri, nameMatch[1])
+	if !ok {
+		return nil
+	}
+	contents, err := os.ReadFile(component.Path)
+	if err != nil {
+		return nil
+	}
+	used := map[string]bool{}
+	for _, match := range componentAttributeName.FindAllStringSubmatch(source[start:offset], -1) {
+		used[match[1]] = true
+	}
+	var items []map[string]any
+	for _, field := range templateProps(documentURI(component.Path), string(contents)) {
+		if used[field.Name] {
+			continue
+		}
+		insert := field.Name + `=\${Props.${1:Value}}`
+		if field.Type == "string" {
+			insert = field.Name + `="${1:value}"`
+		}
+		items = append(items, map[string]any{
+			"label": field.Name, "kind": 10, "detail": field.Type + " prop of <" + component.Name + ">",
+			"insertText": insert, "insertTextFormat": 2,
+		})
+	}
+	return items
 }

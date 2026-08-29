@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"northframe.dev/northframe/examples/commerce/internal/viewmodels"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/internal/viewmodels"
 )
 
 func GetDashboard(ctx context.Context, store Store) (viewmodels.Dashboard, error) {

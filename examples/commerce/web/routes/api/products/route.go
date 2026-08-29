@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"northframe.dev/northframe/examples/commerce/services/commerce"
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/services/commerce"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type createProductRequest struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"northframe.dev/northframe/internal/lsp"
+	"github.com/JohnKinyanjui/northframe/internal/lsp"
 )
 
 func main() {
@@ -64,7 +64,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `Northframe — native Go SSR with structured server views
 
 usage:
-  north create DIR   create a Northframe application (use . for this directory)
+  north create DIR   create an app; add --template=docs for a documentation site
   north generate     compile views, loaders, and routes/api handlers
   north run          compile, serve, and reload during development
   north build        produce one deployment binary

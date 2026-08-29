@@ -8,17 +8,17 @@ import (
 	"strconv"
 	"strings"
 
-	"northframe.dev/northframe/internal/compiler"
+	"github.com/JohnKinyanjui/northframe/internal/compiler"
 )
 
 var bytePosition = regexp.MustCompile(`byte ([0-9]+)`)
 var serverHTMLExpression = regexp.MustCompile(`\{html\s+([^}]+)\}`)
 
-func (current *server) publishDiagnostics(uri, text string) error {
+func (current *server) publishDiagnostics(uri, text string, version int) error {
 	diagnostics := validateDocument(uri, text)
 	return current.transport.write(notification{
 		JSONRPC: "2.0", Method: "textDocument/publishDiagnostics",
-		Params: map[string]any{"uri": uri, "diagnostics": diagnostics},
+		Params: map[string]any{"uri": uri, "version": version, "diagnostics": diagnostics},
 	})
 }
 
@@ -34,7 +34,7 @@ func validateDocument(uri, text string) []diagnostic {
 	}
 	diagnostics = append(diagnostics, propsTypeDiagnostics(uri, text)...)
 	diagnostics = append(diagnostics, htmlTypeDiagnostics(uri, text)...)
-	for _, issue := range compiler.UnsupportedClasses([][]byte{[]byte(text)}, nil) {
+	for _, issue := range compiler.UnsupportedClasses([][]byte{[]byte(text)}, projectCSS(documentPath(uri))) {
 		start := byteOffsetToPosition(text, issue.Offset)
 		diagnostics = append(diagnostics, diagnostic{
 			Range:    protocolRange{Start: start, End: byteOffsetToPosition(text, issue.Offset+len(issue.Name))},
@@ -61,6 +61,24 @@ func validateDocument(uri, text string) []diagnostic {
 		}
 	}
 	return diagnostics
+}
+
+func projectCSS(path string) [][]byte {
+	directory := filepath.Dir(path)
+	for {
+		candidate := filepath.Join(directory, "app.css")
+		if contents, err := os.ReadFile(candidate); err == nil {
+			return [][]byte{contents}
+		}
+		if _, err := os.Stat(filepath.Join(directory, "go.mod")); err == nil {
+			return nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return nil
+		}
+		directory = parent
+	}
 }
 
 func htmlTypeDiagnostics(uri, text string) []diagnostic {

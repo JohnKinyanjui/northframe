@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
-	generated "northframe.dev/northframe/examples/commerce/.generated/routes/inventory"
-	"northframe.dev/northframe/examples/commerce/services/commerce"
-	"northframe.dev/northframe/pkg/web"
+	generated "github.com/JohnKinyanjui/northframe/examples/commerce/.generated/routes/inventory"
+	"github.com/JohnKinyanjui/northframe/examples/commerce/services/commerce"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 type AddProductInput struct {

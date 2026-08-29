@@ -314,6 +314,131 @@ func missingImportEdit(text string, imported propsImport) (map[string]any, bool)
 	return map[string]any{"range": protocolRange{Start: where, End: where}, "newText": newText}, true
 }
 
+func organizePropsImports(uri, text string) string {
+	block, start, end, found := propsBlockContent(text)
+	if !found {
+		return text
+	}
+
+	existing := propsImports(text)
+	knownAliases := make(map[string]bool, len(existing))
+	knownPaths := make(map[string]bool, len(existing))
+	for _, imported := range existing {
+		knownAliases[imported.Alias] = true
+		knownPaths[imported.Path] = true
+	}
+
+	usedAliases := map[string]bool{}
+	contract := block
+	if match := frontmatterPropsInterface.FindStringSubmatch(block); len(match) == 2 {
+		contract = match[1]
+	}
+	for _, match := range qualifiedGoType.FindAllStringSubmatch(contract, -1) {
+		usedAliases[match[1]] = true
+	}
+
+	candidates := map[string][]projectImport{}
+	for _, imported := range projectImports(uri) {
+		if usedAliases[imported.Alias] && !knownAliases[imported.Alias] && !knownPaths[imported.Path] {
+			candidates[imported.Alias] = append(candidates[imported.Alias], imported)
+		}
+	}
+	for alias := range usedAliases {
+		matches := candidates[alias]
+		selected, ok := preferredProjectImport(uri, matches)
+		if !ok {
+			continue
+		}
+		existing = append(existing, propsImport{Alias: selected.Alias, Path: selected.Path})
+		knownAliases[selected.Alias] = true
+		knownPaths[selected.Path] = true
+	}
+
+	sort.Slice(existing, func(i, j int) bool {
+		if existing[i].Path == existing[j].Path {
+			return existing[i].Alias < existing[j].Alias
+		}
+		return existing[i].Path < existing[j].Path
+	})
+
+	lines := strings.Split(block, "\n")
+	remaining := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if propsImportLine.MatchString(line) {
+			continue
+		}
+		remaining = append(remaining, strings.TrimRight(line, " \t"))
+	}
+	for len(remaining) > 0 && strings.TrimSpace(remaining[0]) == "" {
+		remaining = remaining[1:]
+	}
+	for len(remaining) > 0 && strings.TrimSpace(remaining[len(remaining)-1]) == "" {
+		remaining = remaining[:len(remaining)-1]
+	}
+
+	imports := make([]string, 0, len(existing))
+	seen := map[string]bool{}
+	for _, imported := range existing {
+		key := imported.Alias + "\x00" + imported.Path
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		imports = append(imports, `import `+imported.Alias+` "`+imported.Path+`"`)
+	}
+	parts := make([]string, 0, 2)
+	if len(imports) > 0 {
+		parts = append(parts, strings.Join(imports, "\n"))
+	}
+	if len(remaining) > 0 {
+		parts = append(parts, strings.Join(remaining, "\n"))
+	}
+	organized := strings.Join(parts, "\n\n")
+	if strings.HasSuffix(block, "\n") {
+		organized += "\n"
+	}
+	if organized == block {
+		return text
+	}
+	return text[:start] + organized + text[end:]
+}
+
+func preferredProjectImport(uri string, candidates []projectImport) (projectImport, bool) {
+	if len(candidates) == 0 {
+		return projectImport{}, false
+	}
+	root, modulePath := goModuleFor(documentPath(uri))
+	required := requiredModulePaths(root)
+	bestPriority := -1
+	best := make([]projectImport, 0, len(candidates))
+	for _, candidate := range candidates {
+		priority := 0
+		if candidate.Path == modulePath || strings.HasPrefix(candidate.Path, strings.TrimRight(modulePath, "/")+"/") {
+			priority = 3
+		} else {
+			for _, module := range required {
+				if candidate.Path == module || strings.HasPrefix(candidate.Path, strings.TrimRight(module, "/")+"/") {
+					priority = 2
+					break
+				}
+			}
+			if priority == 0 && !strings.Contains(candidate.Path, "/") {
+				priority = 1
+			}
+		}
+		if priority > bestPriority {
+			bestPriority = priority
+			best = []projectImport{candidate}
+		} else if priority == bestPriority {
+			best = append(best, candidate)
+		}
+	}
+	if len(best) != 1 {
+		return projectImport{}, false
+	}
+	return best[0], true
+}
+
 func importedGoTypeAt(uri, text string, offset int) (goTypeSymbol, bool) {
 	lineStart := strings.LastIndex(text[:offset], "\n") + 1
 	lineEndOffset := strings.Index(text[offset:], "\n")

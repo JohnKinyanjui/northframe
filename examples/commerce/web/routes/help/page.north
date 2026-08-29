@@ -1,5 +1,5 @@
 <script context="props">
-import viewmodels "northframe.dev/northframe/examples/commerce/internal/viewmodels"
+import viewmodels "github.com/JohnKinyanjui/northframe/examples/commerce/internal/viewmodels"
 Questions []viewmodels.Question
 Query string
 Total int

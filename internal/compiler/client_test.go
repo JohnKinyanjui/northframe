@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"northframe.dev/northframe/internal/dependencies"
+	"github.com/JohnKinyanjui/northframe/internal/dependencies"
 )
 
 func TestCompileClientComponentTransformsTypeScriptState(t *testing.T) {
@@ -38,6 +38,24 @@ function toggle() { open = !open; }
 	}
 	if strings.Contains(javascript, ": boolean") || strings.Contains(javascript, ": string") {
 		t.Errorf("TypeScript types were not removed\n%s", javascript)
+	}
+}
+
+func TestCompileClientComponentSupportsHashClientInterpolation(t *testing.T) {
+	source := []byte(`<script lang="ts">
+let open: boolean = false;
+let name: string = "Relay";
+</script>
+<section show=#{open}><input bind:value=#{name}><strong>#{name}</strong></section>`)
+	markup, module, err := compileClientComponent("ClientInterpolation", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if module == nil || strings.Contains(string(markup), "#{") {
+		t.Fatalf("client interpolation was not compiled\n%s", markup)
+	}
+	if !strings.Contains(string(module.Source), `kind: "model"`) {
+		t.Fatalf("client bindings missing from module\n%s", module.Source)
 	}
 }
 
@@ -130,6 +148,21 @@ func TestCompileClientComponentChecksGeneratedGoProps(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "initialized with string") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestValidateUsesDocumentPropsContractForTypeScript(t *testing.T) {
+	source := []byte(`---
+interface Props {
+  Snapshot string
+}
+---
+<script lang="ts">
+const snapshot = props.Snapshot;
+</script>
+<p>{Props.Snapshot}</p>`)
+	if err := Validate(source); err != nil {
+		t.Fatalf("Validate() error = %v", err)
 	}
 }
 

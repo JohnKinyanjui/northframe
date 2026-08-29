@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	db "northframe.dev/northframe/examples/commerce/internal/db/generated"
+	db "github.com/JohnKinyanjui/northframe/examples/commerce/internal/db/generated"
 )
 
 var ErrInvalidProduct = errors.New("invalid product")

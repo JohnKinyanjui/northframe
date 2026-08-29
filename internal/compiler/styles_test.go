@@ -16,7 +16,7 @@ func TestBuildStylesGeneratesUsedUtilitiesAndColocatedCSS(t *testing.T) {
 	for _, expected := range []string{
 		`--nf-font-display:var(--nf-font-sans)`,
 		`[hidden]{display:none!important}`,
-		`north-component{display:contents}`,
+		`north-component,north-route-segment{display:contents}`,
 		`button,[type=button],[type=reset],[type=submit]{background-color:transparent;background-image:none}`,
 		`blockquote,dl,dd,h1,h2,h3,h4,h5,h6,hr,figure,p,pre{margin:0}`,
 		`.flex{display:flex}`,
@@ -34,26 +34,31 @@ func TestBuildStylesGeneratesUsedUtilitiesAndColocatedCSS(t *testing.T) {
 
 func TestExamplesOnlyUseSupportedUtilities(t *testing.T) {
 	for _, root := range []string{"../../examples"} {
+		var views [][]byte
+		var customCSS [][]byte
 		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
-			if entry.IsDir() || filepath.Ext(path) != ".north" {
+			if entry.IsDir() || (filepath.Ext(path) != ".north" && filepath.Ext(path) != ".css") {
 				return nil
 			}
 			source, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
-			for _, current := range literalClasses(source) {
-				if utilityRule(current.Name) == "" && current.Name != "group" && current.Name != "peer" {
-					t.Errorf("%s uses unsupported utility %q", path, current.Name)
-				}
+			if filepath.Ext(path) == ".north" {
+				views = append(views, source)
+			} else {
+				customCSS = append(customCSS, source)
 			}
 			return nil
 		})
 		if err != nil {
 			t.Fatal(err)
+		}
+		for _, issue := range UnsupportedClasses(views, customCSS) {
+			t.Errorf("examples use unsupported utility %q", issue.Name)
 		}
 	}
 }
@@ -214,6 +219,17 @@ func TestBuildStylesSupportsDashboardInteractionAndLayoutUtilities(t *testing.T)
 		if !strings.Contains(styles, expected) {
 			t.Errorf("compiled CSS does not contain %q\n%s", expected, styles)
 		}
+	}
+}
+
+func TestBuildStylesSupportsTailwindNumericSpacingScale(t *testing.T) {
+	source := []byte(`<table class="min-w-180"></table>`)
+	styles := string(BuildStyles([][]byte{source}, nil))
+	if !strings.Contains(styles, `.min-w-180{min-width:45rem}`) {
+		t.Fatalf("missing canonical numeric spacing utility\n%s", styles)
+	}
+	if issues := UnsupportedClasses([][]byte{source}, nil); len(issues) != 0 {
+		t.Fatalf("unexpected unsupported utilities: %v", issues)
 	}
 }
 
@@ -383,5 +399,27 @@ func TestBuildStylesSupportsPointOfSaleUtilities(t *testing.T) {
 		if !strings.Contains(styles, expected) {
 			t.Errorf("compiled CSS does not contain %q\n%s", expected, styles)
 		}
+	}
+}
+
+func TestBuildStylesSupportsDocumentationSyntaxColors(t *testing.T) {
+	source := []byte(`<code class="text-emerald-300 text-rose-300 text-sky-300 text-violet-300"></code>`)
+	styles := string(BuildStyles([][]byte{source}, nil))
+	for _, expected := range []string{
+		`.text-emerald-300{color:#6ee7b7}`,
+		`.text-rose-300{color:#fda4af}`,
+		`.text-sky-300{color:#7dd3fc}`,
+		`.text-violet-300{color:#c4b5fd}`,
+	} {
+		if !strings.Contains(styles, expected) {
+			t.Errorf("compiled CSS does not contain %q\n%s", expected, styles)
+		}
+	}
+}
+
+func TestBuildStylesPreservesSpacesInArbitraryCalcValues(t *testing.T) {
+	styles := string(BuildStyles([][]byte{[]byte(`<div class="h-[calc(100vh_-_4rem)]"></div>`)}, nil))
+	if !strings.Contains(styles, `height:calc(100vh - 4rem)`) {
+		t.Fatalf("arbitrary calc spacing was not preserved:\n%s", styles)
 	}
 }

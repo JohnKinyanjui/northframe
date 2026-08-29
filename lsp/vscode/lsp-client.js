@@ -3,9 +3,10 @@
 const { spawn } = require("child_process");
 
 class LSPClient {
-  constructor(command, args, notification, log) {
+  constructor(command, args, notification, log, options = {}) {
     this.command = command;
     this.args = args;
+    this.cwd = options.cwd;
     this.notification = notification;
     this.log = log;
     this.nextID = 1;
@@ -17,7 +18,10 @@ class LSPClient {
 
   async start(initializeParams) {
     this.log(`Starting ${this.command} ${this.args.join(" ")}`);
-    const child = spawn(this.command, this.args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(this.command, this.args, {
+      cwd: this.cwd,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     this.process = child;
     child.stdout.on("data", (chunk) => this.consume(chunk));
     child.stderr.on("data", (chunk) => this.log(chunk.toString().trimEnd()));

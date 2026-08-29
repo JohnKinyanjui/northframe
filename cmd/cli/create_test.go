@@ -38,7 +38,7 @@ func TestCreateProjectInExistingRootBuildsProtectedGeneratedTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"main.go", "web/routes/page.north", "web/routes/api/health/route.go",
+		"main.go", "web/app.css", "web/routes/page.north", "web/routes/api/health/route.go",
 		".generated/routes/router_generated.go", ".generated/routes/root/props_generated.go",
 	} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(expected))); err != nil {
@@ -64,5 +64,37 @@ func TestPreflightScaffoldRejectsConflictingApplicationFile(t *testing.T) {
 func TestDefaultModulePath(t *testing.T) {
 	if got := defaultModulePath("TopDuka ScaleNodes"); got != "TopDuka-ScaleNodes" {
 		t.Fatalf("defaultModulePath = %q", got)
+	}
+}
+
+func TestParseCreateArgumentsAcceptsTemplateAfterDirectory(t *testing.T) {
+	module, template, directory, err := parseCreateArguments([]string{".", "--template=docs", "--module", "example.test/docs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if module != "example.test/docs" || template != "docs" || directory != "." {
+		t.Fatalf("parsed = module %q, template %q, directory %q", module, template, directory)
+	}
+}
+
+func TestCreateDocsTemplateGeneratesBuildableDocumentationProject(t *testing.T) {
+	root := t.TempDir()
+	if err := createProject([]string{root, "--template=docs", "--module=example.test/docs"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"content/index.md", "content/content.go", "web/app.css", "web/routes/error.north",
+		"web/routes/page.north", ".generated/routes/application_error_generated.go",
+	} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(expected))); err != nil {
+			t.Errorf("missing %s: %v", expected, err)
+		}
+	}
+	page, err := os.ReadFile(filepath.Join(root, "web/routes/page.north"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), "pkg/web") || !strings.Contains(string(page), "{html Props.Content}") {
+		t.Fatalf("unexpected docs page scaffold:\n%s", page)
 	}
 }

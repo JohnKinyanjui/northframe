@@ -45,12 +45,14 @@ type diagnostic struct {
 }
 
 type textDocumentItem struct {
-	URI  string `json:"uri"`
-	Text string `json:"text"`
+	URI     string `json:"uri"`
+	Text    string `json:"text"`
+	Version int    `json:"version"`
 }
 
 type versionedTextDocument struct {
-	URI string `json:"uri"`
+	URI     string `json:"uri"`
+	Version int    `json:"version"`
 }
 
 type textDocumentPosition struct {

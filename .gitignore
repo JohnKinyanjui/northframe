@@ -13,3 +13,4 @@ examples/*/app
 *.db
 *.db-shm
 *.db-wal
+drone-simulator

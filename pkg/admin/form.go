@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"northframe.dev/northframe/pkg/web"
+	"github.com/JohnKinyanjui/northframe/pkg/web"
 )
 
 func decodeRecord(request *http.Request, resource Resource) (Record, web.FieldErrors, error) {

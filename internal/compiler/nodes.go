@@ -14,7 +14,12 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 			nodes = appendText(nodes, source[position:])
 			return nodes, len(source), "", nil
 		}
-		nodes = appendText(nodes, source[position:open])
+		dollarInterpolation := token == '{' && open > position && source[open-1] == '$'
+		textEnd := open
+		if dollarInterpolation {
+			textEnd--
+		}
+		nodes = appendText(nodes, source[position:textEnd])
 		if token == '<' {
 			tag, err := parseComponentTag(source, open)
 			if err != nil {
@@ -46,6 +51,13 @@ func parseNodes(source string, position int) ([]node, int, string, error) {
 		close := open + closeOffset + 1
 		directive := strings.TrimSpace(source[open+1 : close])
 		position = close + 1
+		if dollarInterpolation {
+			if !validExpression(directive) {
+				return nil, open - 1, "", fmt.Errorf("invalid server interpolation %q at byte %d", directive, open-1)
+			}
+			nodes = append(nodes, exprNode{Expression: directive})
+			continue
+		}
 		if strings.HasPrefix(directive, "__north_slot ") {
 			name := strings.TrimSpace(strings.TrimPrefix(directive, "__north_slot"))
 			if !identifier.MatchString(name) {

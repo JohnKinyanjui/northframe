@@ -6,7 +6,7 @@ import (
 	"os"
 	"sort"
 
-	"northframe.dev/northframe/internal/dependencies"
+	"github.com/JohnKinyanjui/northframe/internal/dependencies"
 )
 
 func addDependency(arguments []string) error {

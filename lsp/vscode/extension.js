@@ -2,12 +2,17 @@
 
 const vscode = require("vscode");
 const { LSPClient } = require("./lsp-client");
+const { resolveServerCommand } = require("./server-command");
 const {
   applyOffsetEdits,
+  dedentBlock,
   formatPropsBlock,
+  formatMarkupIndentation,
   formatNorthframeBlocks,
+  formattingPreservesTokens,
   formattingTemplate,
   htmlVirtualContent,
+  layoutDocumentMarkup,
   restoreFormattedScripts,
   scriptRegionAt,
   typescriptVirtualContent,
@@ -18,6 +23,7 @@ let activeController;
 class EmbeddedDocuments {
   constructor() {
     this.contents = new Map();
+    this.identities = new Map();
     this.changed = new vscode.EventEmitter();
     this.registration = vscode.workspace.registerTextDocumentContentProvider("northframe-embedded", {
       onDidChange: this.changed.event,
@@ -27,13 +33,18 @@ class EmbeddedDocuments {
 
   async open(source, language, content, identity = "document") {
     const extension = language === "typescript" ? "ts" : "html";
+    const identityKey = `${source.uri.toString()}::${language}::${identity}`;
+    const fingerprint = contentFingerprint(content);
     const uri = vscode.Uri.from({
       scheme: "northframe-embedded",
       authority: language,
-      path: `${source.uri.path}.${identity}.${extension}`,
+      path: `${source.uri.path}.${identity}-${fingerprint}.${extension}`,
       query: encodeURIComponent(source.uri.toString()),
     });
     const key = uri.toString();
+    const previous = this.identities.get(identityKey);
+    if (previous && previous !== key) this.contents.delete(previous);
+    this.identities.set(identityKey, key);
     if (this.contents.get(key) !== content) {
       this.contents.set(key, content);
       this.changed.fire(uri);
@@ -47,7 +58,17 @@ class EmbeddedDocuments {
     this.registration.dispose();
     this.changed.dispose();
     this.contents.clear();
+    this.identities.clear();
   }
+}
+
+function contentFingerprint(content) {
+  let hash = 2166136261;
+  for (let index = 0; index < content.length; index++) {
+    hash ^= content.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 class NorthframeController {
@@ -66,6 +87,11 @@ class NorthframeController {
       vscode.workspace.onDidOpenTextDocument((document) => this.open(document)),
       vscode.workspace.onDidChangeTextDocument((event) => this.change(event.document)),
       vscode.workspace.onDidCloseTextDocument((document) => this.close(document)),
+      vscode.workspace.onWillSaveTextDocument((event) => {
+        if (event.document.languageId === "northframe") {
+          event.waitUntil(this.organizeImports(event.document));
+        }
+      }),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration("northframe.server")) void this.restart();
       }),
@@ -74,6 +100,7 @@ class NorthframeController {
       vscode.languages.registerHoverProvider(selector, { provideHover: (document, position) => this.hover(document, position) }),
       vscode.languages.registerCompletionItemProvider(selector, { provideCompletionItems: (document, position, _token, completionContext) => this.completions(document, position, completionContext) }, "{", ".", "<", "\"", "'", "/"),
       vscode.languages.registerDefinitionProvider(selector, { provideDefinition: (document, position) => this.definition(document, position) }),
+      vscode.languages.registerReferenceProvider(selector, { provideReferences: (document, position, context) => this.references(document, position, context) }),
       vscode.languages.registerRenameProvider(selector, {
         prepareRename: (document, position) => this.prepareRename(document, position),
         provideRenameEdits: (document, position, newName) => this.rename(document, position, newName),
@@ -89,11 +116,27 @@ class NorthframeController {
     const configuration = vscode.workspace.getConfiguration("northframe.server");
     const command = configuration.get("path", "north");
     const args = configuration.get("args", ["lsp"]);
-    const client = new LSPClient(command, args, (method, params) => this.notification(method, params), (message) => this.log(message));
-    this.client = client;
     const folders = vscode.workspace.workspaceFolders || [];
+    const server = resolveServerCommand({
+      command,
+      args,
+      folders,
+      pathSetting: configuration.inspect("path"),
+      argsSetting: configuration.inspect("args"),
+    });
+    if (server.localCheckout) {
+      this.log(`Using Northframe language server from the open source checkout at ${server.cwd}`);
+    }
+    const client = new LSPClient(
+      server.command,
+      server.args,
+      (method, params) => this.notification(method, params),
+      (message) => this.log(message),
+      { cwd: server.cwd },
+    );
+    this.client = client;
     try {
-      await client.start({
+      const initialization = await client.start({
         processId: process.pid,
         clientInfo: { name: "Northframe VS Code" },
         rootUri: folders[0]?.uri.toString() || null,
@@ -101,6 +144,15 @@ class NorthframeController {
         capabilities: {},
       });
       this.log("Northframe language server ready");
+	  if (initialization?.capabilities?.referencesProvider !== true) {
+		this.log("The configured north CLI is older than this extension and does not provide the current navigation contract");
+		void vscode.window.showWarningMessage(
+		  "The configured north CLI is older than the Northframe extension. Run `go install github.com/JohnKinyanjui/northframe/cmd/cli@latest`, then restart the language server.",
+		  "Show Output",
+		).then((choice) => {
+		  if (choice === "Show Output") this.output.show(true);
+		});
+	  }
       for (const document of vscode.workspace.textDocuments) this.open(document);
     } catch (error) {
       if (this.client === client) this.client = null;
@@ -152,6 +204,11 @@ class NorthframeController {
   notification(method, params) {
     if (method === "textDocument/publishDiagnostics") {
       const uri = vscode.Uri.parse(params.uri);
+      const document = vscode.workspace.textDocuments.find((current) => current.uri.toString() === uri.toString());
+      if (document && Number.isInteger(params.version) && document.version !== params.version) {
+        this.log(`Ignored stale diagnostics for ${uri.fsPath || uri.toString()} (version ${params.version}, current ${document.version})`);
+        return;
+      }
       const diagnostics = (params.diagnostics || []).map((item) => {
         const diagnostic = new vscode.Diagnostic(toRange(item.range), item.message, toDiagnosticSeverity(item.severity));
         diagnostic.source = item.source || "northframe";
@@ -250,10 +307,40 @@ class NorthframeController {
   }
 
   async definition(document, position) {
-    const result = await this.request("textDocument/definition", document, position);
-    if (!result) return undefined;
-    const locations = Array.isArray(result) ? result : [result];
-    return locations.map((location) => new vscode.Location(vscode.Uri.parse(location.uri), toRange(location.range)));
+    const [result, embedded] = await Promise.all([
+      this.request("textDocument/definition", document, position),
+      this.embeddedLocations("vscode.executeDefinitionProvider", document, position),
+    ]);
+    const raw = result ? (Array.isArray(result) ? result : [result]) : [];
+    const locations = raw.map((location) => new vscode.Location(vscode.Uri.parse(location.uri), toRange(location.range)));
+    return uniqueLocations([...locations, ...(embedded || [])]);
+  }
+
+  async references(document, position, context) {
+    const [result, embedded] = await Promise.all([
+      this.request("textDocument/references", document, position, { context: { includeDeclaration: context?.includeDeclaration !== false } }),
+      this.embeddedLocations("vscode.executeReferenceProvider", document, position),
+    ]);
+    const raw = Array.isArray(result) ? result : [];
+    const locations = raw.map((location) => new vscode.Location(vscode.Uri.parse(location.uri), toRange(location.range)));
+    return uniqueLocations([...locations, ...(embedded || [])]);
+  }
+
+  async embeddedLocations(command, document, position) {
+    try {
+      const virtual = await this.embeddedDocument(document, position);
+      const locations = await vscode.commands.executeCommand(command, virtual.uri, position);
+      return (locations || []).map((location) => {
+        const target = location.targetUri
+          ? new vscode.Location(location.targetUri, location.targetSelectionRange || location.targetRange)
+          : location;
+        if (target.uri?.scheme !== "northframe-embedded") return target;
+        return new vscode.Location(document.uri, target.range);
+      });
+    } catch (error) {
+      this.log(`Embedded navigation failed: ${error.message}`);
+      return [];
+    }
   }
 
   async prepareRename(document, position) {
@@ -286,7 +373,10 @@ class NorthframeController {
 
   async format(document, options) {
     const original = document.getText();
-    const template = formattingTemplate(original);
+    const importEdits = await this.organizeImports(document);
+    const organized = applyTextEdits(document, importEdits);
+    const indentation = indentationUnit(options);
+    const template = formattingTemplate(organized, indentation);
     const htmlDocument = await this.embedded.open(document, "html", template.source, "format");
     const htmlEdits = await vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", htmlDocument.uri, options);
     const formattedHTML = applyTextEdits(htmlDocument, htmlEdits || []);
@@ -295,22 +385,44 @@ class NorthframeController {
     for (let index = 0; index < template.regions.length; index++) {
       const region = template.regions[index];
       if (region.kind === "typescript") {
-        const scriptDocument = await this.embedded.open(document, "typescript", region.content, `script-${index}`);
+        const scriptSource = dedentBlock(region.content);
+        const scriptDocument = await this.embedded.open(document, "typescript", scriptSource, `script-${index}`);
         const edits = await vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", scriptDocument.uri, options);
-        formattedContents.push(applyTextEdits(scriptDocument, edits || []).trim());
+        const candidate = applyTextEdits(scriptDocument, edits || []);
+        if (formattingPreservesTokens(scriptSource, candidate)) {
+          formattedContents.push(candidate.trim());
+        } else {
+          this.log(`Ignored unsafe TypeScript formatting edits in script ${index + 1}`);
+          formattedContents.push(scriptSource);
+        }
       } else if (region.kind === "props") {
-        formattedContents.push(formatPropsBlock(region.content, indentationUnit(options)));
+        formattedContents.push(formatPropsBlock(region.content, region.frontmatter ? indentation : ""));
       } else {
-        formattedContents.push(region.content.trim());
+        formattedContents.push(dedentBlock(region.content));
       }
     }
 
-    const formatted = formatNorthframeBlocks(
-      restoreFormattedScripts({ ...template, source: formattedHTML }, formattedContents),
-      indentationUnit(options),
+    const formatted = formatMarkupIndentation(
+      layoutDocumentMarkup(
+        formatNorthframeBlocks(
+          restoreFormattedScripts({ ...template, source: formattedHTML }, formattedContents),
+          indentation,
+        ),
+      ),
+      indentation,
     );
+    if (!formattingPreservesTokens(organized, formatted)) {
+      this.log("Ignored unsafe document formatting edits because they changed Northframe tokens");
+      return [];
+    }
     if (formatted === original) return [];
     return [vscode.TextEdit.replace(fullRange(document), formatted)];
+  }
+
+  async organizeImports(document) {
+    if (!this.client || document.languageId !== "northframe") return [];
+    const result = await this.request("northframe/organizeImports", document);
+    return (result || []).map((edit) => vscode.TextEdit.replace(toRange(edit.range), edit.newText));
   }
 
   request(method, document, position, additional = {}) {
@@ -354,6 +466,17 @@ function applyTextEdits(document, edits) {
 		end: document.offsetAt(edit.range.end),
 		newText: edit.newText,
 	})));
+}
+
+function uniqueLocations(locations) {
+  const seen = new Set();
+  return locations.filter((location) => {
+    if (!location?.uri || !location?.range) return false;
+    const key = `${location.uri.toString()}:${location.range.start.line}:${location.range.start.character}:${location.range.end.line}:${location.range.end.character}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function toDiagnosticSeverity(severity) {

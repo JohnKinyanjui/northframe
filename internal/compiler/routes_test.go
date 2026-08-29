@@ -13,31 +13,32 @@ func TestBuildRoutesCreatesTypedNestedRouter(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
 	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<h1 class="text-4xl">{Props.Title}</h1>`)
 	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type LayoutProps struct{}
 func Layout(*web.Context) (LayoutProps, error) { return LayoutProps{}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type PageProps struct { Title string }
 func Page(*web.Context) (PageProps, error) { return PageProps{Title: "Home"}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "auth", "layout.north"), `<section class="p-6"><slot /></section>`)
 	writeRouteTestFile(t, filepath.Join(root, "auth", "page.north"), `<p>Sign in</p>`)
 	writeRouteTestFile(t, filepath.Join(root, "auth", "layout.north.go"), `package auth
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type LayoutProps struct{}
 func Layout(*web.Context) (LayoutProps, error) { return LayoutProps{}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "auth", "page.north.go"), `package auth
 import (
-  "northframe.dev/northframe/pkg/web"
+  "github.com/JohnKinyanjui/northframe/pkg/web"
 )
 type PageProps struct{}
 func Page(*web.Context) (PageProps, error) { return PageProps{}, nil }
 func PageActions() []web.Action { return nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "auth", "page.css"), `.auth { color: rebeccapurple; }`)
+	writeRouteTestFile(t, filepath.Join(appRoot, "app.css"), `:root { --brand: #252a31; } .global-shell { color: var(--brand); }`)
 	writeRouteTestFile(t, filepath.Join(appRoot, "public", "fonts", "admin.woff2"), `font-data`)
 	writeRouteTestFile(t, filepath.Join(appRoot, "public", "site.webmanifest"), `{}`)
 	writeRouteTestFile(t, filepath.Join(appRoot, "components", "notice.north"), `<aside class="p-4">Shared notice</aside>`)
@@ -62,15 +63,78 @@ func PageActions() []web.Action { return nil }
 		`GET /public/`,
 		`GET /fonts/admin.woff2`,
 		`GET /site.webmanifest`,
+		`data-north-route-kind=\"page\"`,
+		`data-north-route-kind=\"layout\" data-north-route-segment=\"auth\"`,
 		`fonts/admin.woff2`,
 		`application/manifest+json`,
 		`Shared notice`,
 		`.text-4xl{font-size:2.25rem;line-height:2.5rem}`,
 		`.auth { color: rebeccapurple; }`,
+		`.global-shell { color: var(--brand); }`,
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated router does not contain %q\n%s", expected, router)
 		}
+	}
+}
+
+func TestBuildRoutesForwardsLayoutSlotThroughComponent(t *testing.T) {
+	appRoot := t.TempDir()
+	root := filepath.Join(appRoot, "routes")
+	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<!doctype html><html><head></head><body><Shell><slot /></Shell></body></html>`)
+	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<p>Forwarded page</p>`)
+	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(appRoot, "components", "shell.north"), `<main><slot /></main>`)
+
+	build, err := BuildRoutes(root, "routesgen", "example.test/app/routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	layout := string(build.Files["root_layout_generated.go"])
+	if !strings.Contains(layout, `if content != nil`) {
+		t.Fatalf("layout component did not forward the route slot\n%s", layout)
+	}
+}
+
+func TestBuildRoutesCompilesRootErrorPageAndRegistersFallback(t *testing.T) {
+	appRoot := t.TempDir()
+	root := filepath.Join(appRoot, "routes")
+	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
+	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<p>Home</p>`)
+	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(root, "error.north"), `<!doctype html><html><head><title>${Props.Status}</title></head><body><h1>${Props.Message}</h1><p>${Props.Path}</p></body></html>`)
+
+	build, err := BuildRoutes(root, "routesgen", "example.test/app/routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	errorRenderer := string(build.Files["application_error_generated.go"])
+	router := string(build.Files["router_generated.go"])
+	for _, expected := range []string{`type ApplicationErrorProps struct`, `web.WriteEscaped(w, props.Status)`, `web.WriteEscaped(w, props.Message)`} {
+		if !strings.Contains(errorRenderer, expected) {
+			t.Errorf("generated error renderer does not contain %q\n%s", expected, errorRenderer)
+		}
+	}
+	for _, expected := range []string{`app.SetErrorRenderer`, `RenderApplicationError`, `app.HandleFunc("GET /"`, `web.NotFound("Page not found")`} {
+		if !strings.Contains(router, expected) {
+			t.Errorf("generated router does not contain %q\n%s", expected, router)
+		}
+	}
+}
+
+func TestBuildRoutesRejectsNestedErrorPageUntilBoundariesAreSupported(t *testing.T) {
+	root := t.TempDir()
+	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<!doctype html><html><head></head><body><slot /></body></html>`)
+	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), loaderSidecar("routes", "Layout"))
+	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<p>Home</p>`)
+	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), loaderSidecar("routes", "Page"))
+	writeRouteTestFile(t, filepath.Join(root, "admin", "error.north"), `<!doctype html><html><head></head><body>Error</body></html>`)
+
+	_, err := BuildRoutes(root, "routesgen", "example.test/app/routes")
+	if err == nil || !strings.Contains(err.Error(), "error.north currently belongs at the root") {
+		t.Fatalf("BuildRoutes error = %v", err)
 	}
 }
 
@@ -82,13 +146,13 @@ func TestBuildRoutesCreatesDynamicAndCatchAllPatterns(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), loaderSidecar("routes", "Page"))
 	writeRouteTestFile(t, filepath.Join(root, "users", "id_", "page.north"), `<p>{Props.ID}</p>`)
 	writeRouteTestFile(t, filepath.Join(root, "users", "id_", "page.north.go"), `package id
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type PageProps struct { ID string }
 func Page(ctx *web.Context) (PageProps, error) { return PageProps{ID: ctx.Param("id")}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "files", "path__", "page.north"), `<p>{Props.Path}</p>`)
 	writeRouteTestFile(t, filepath.Join(root, "files", "path__", "page.north.go"), `package path
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type PageProps struct { Path string }
 func Page(ctx *web.Context) (PageProps, error) { return PageProps{Path: ctx.Param("path")}, nil }
 `)
@@ -114,16 +178,16 @@ func TestBuildProjectDiscoversAPIMethodHandlers(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
 	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
 	writeRouteTestFile(t, filepath.Join(api, "products", "get.go"), `package products
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func GET(ctx *web.Context) error { return ctx.JSON(200, nil) }
 func Middleware() []web.Middleware { return nil }
 `)
 	writeRouteTestFile(t, filepath.Join(api, "products", "post.go"), `package products
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func POST(ctx *web.Context) error { return ctx.JSON(201, nil) }
 `)
 	writeRouteTestFile(t, filepath.Join(api, "products", "id_", "delete.go"), `package product
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func DELETE(ctx *web.Context) error { return ctx.NoContent() }
 `)
 
@@ -155,7 +219,7 @@ func TestBuildProjectDiscoversAPIWebSocketHandler(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
 	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
 	writeRouteTestFile(t, filepath.Join(api, "events", "route.go"), `package events
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func WEBSOCKET(ctx *web.Context, socket *web.Socket) error { return nil }
 func WebSocketOptions() web.SocketOptions { return web.SocketOptions{ReadLimit: 4096} }
 func Middleware() []web.Middleware { return nil }
@@ -184,7 +248,7 @@ func TestBuildProjectRejectsConflictingGETAndWebSocket(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(routes, "page.north"), `<p>Home</p>`)
 	writeRouteTestFile(t, filepath.Join(routes, "page.north.go"), loaderSidecar("routes", "Page"))
 	writeRouteTestFile(t, filepath.Join(api, "events", "route.go"), `package events
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func GET(ctx *web.Context) error { return nil }
 func WEBSOCKET(ctx *web.Context, socket *web.Socket) error { return nil }
 `)
@@ -237,7 +301,7 @@ func TestBuildRoutesCreatesIndependentTypedComponents(t *testing.T) {
 	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), loaderSidecar("routes", "Layout"))
 	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<Panel Title={Props.Title}><p>Slotted content</p></Panel>`)
 	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type PageProps struct { Title string }
 func Page(*web.Context) (PageProps, error) { return PageProps{Title: "Home"}, nil }
 `)
@@ -280,7 +344,7 @@ func TestBuildRoutesGeneratesRoutePropsFromTemplates(t *testing.T) {
 	root := filepath.Join(appRoot, "routes")
 	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<!doctype html><html><head><title>{Props.Title}</title></head><body><h1>{Props.Title}</h1><slot /></body></html>`)
 	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func Layout(*web.Context) (LayoutProps, error) { return LayoutProps{Title: "Generated"}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<script context="props">
@@ -290,7 +354,7 @@ Dashboard models.Dashboard
 	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), `package routes
 import (
   models "example.test/app/viewmodels"
-  "northframe.dev/northframe/pkg/web"
+  "github.com/JohnKinyanjui/northframe/pkg/web"
 )
 func Page(*web.Context) (PageProps, error) { return PageProps{Dashboard: models.Dashboard{}}, nil }
 `)
@@ -315,12 +379,12 @@ func TestBuildRoutesRequiresContractForNestedInferredProp(t *testing.T) {
 	root := t.TempDir()
 	writeRouteTestFile(t, filepath.Join(root, "layout.north"), `<html><body><slot /></body></html>`)
 	writeRouteTestFile(t, filepath.Join(root, "layout.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func Layout(*web.Context) (LayoutProps, error) { return LayoutProps{}, nil }
 `)
 	writeRouteTestFile(t, filepath.Join(root, "page.north"), `<p>{Props.Dashboard.Name}</p>`)
 	writeRouteTestFile(t, filepath.Join(root, "page.north.go"), `package routes
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 func Page(*web.Context) (PageProps, error) { return PageProps{}, nil }
 `)
 
@@ -356,7 +420,7 @@ func TestBuildRoutesRejectsRetiredNFExtension(t *testing.T) {
 
 func loaderSidecar(packageName, kind string) string {
 	return "package " + packageName + `
-import "northframe.dev/northframe/pkg/web"
+import "github.com/JohnKinyanjui/northframe/pkg/web"
 type ` + kind + `Props struct{}
 func ` + kind + `(*web.Context) (` + kind + `Props, error) { return ` + kind + `Props{}, nil }
 `
