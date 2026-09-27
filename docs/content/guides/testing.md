@@ -22,7 +22,7 @@ This test is fast and does not know about Northframe. Route tests should prove H
 
 ## Test the generated application
 
-After `north generate`, register the generated routes on a test app:
+After `northframe generate`, register the generated routes on a test app:
 
 ```go
 func newTestApp(t *testing.T) *web.App {
@@ -119,14 +119,14 @@ Run sqlc integration tests against the same database engine used in production. 
 A useful local and CI sequence is:
 
 ```sh
-north db verify
-north generate
+northframe db verify
+northframe generate
 go test ./...
 go test -race ./...
-north deploy check
+northframe deploy check
 ```
 
-`north generate` catches view contracts before tests compile. `go test ./...` covers both framework-facing and application packages. `north deploy check` proves the production target builds with generated assets.
+`northframe generate` catches view contracts before tests compile. `go test ./...` covers both framework-facing and application packages. `northframe deploy check` proves the production target builds with generated assets.
 
 ## Browser tests
 

@@ -51,7 +51,7 @@ A `layout.north` file must have `layout.north.go` beside it, exporting:
 func Layout(*web.Context) (generated.LayoutProps, error)
 ```
 
-Northframe parses these files during generation. A missing sidecar, wrong function name, missing `*web.Context` parameter, or wrong return values is a compile error. The sidecar is not generated and is never rewritten by `north generate` or `north upgrade`.
+Northframe parses these files during generation. A missing sidecar, wrong function name, missing `*web.Context` parameter, or wrong return values is a compile error. The sidecar is not generated and is never rewritten by `northframe generate` or `northframe upgrade`.
 
 The two files have deliberately different responsibilities:
 
@@ -337,4 +337,4 @@ For styles shared by the whole application, use `web/app.css`. Northframe automa
 
 When a URL returns 404, check the directory tree first. A missing sidecar means the page pair is incomplete. If Northframe reports an invalid loader signature, compare the function to `func Page(*web.Context) (PageProps, error)` or `func Layout(*web.Context) (LayoutProps, error)`; the props type may be qualified through the generated package. A directory named `[id]` is not a Northframe dynamic route; rename it to `id_`. If the route compiles but a parameter is empty, make sure the name passed to `ctx.Param` matches the directory without its trailing underscore.
 
-Run `north generate` for a one-shot route compile. Compiler diagnostics include the source file and explain missing layouts, unknown components, invalid props, or malformed control flow.
+Run `northframe generate` for a one-shot route compile. Compiler diagnostics include the source file and explain missing layouts, unknown components, invalid props, or malformed control flow.

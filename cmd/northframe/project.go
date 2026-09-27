@@ -45,7 +45,7 @@ func generateProject(options projectOptions) (int, error) {
 		return 0, err
 	}
 	for _, warning := range build.Warnings {
-		fmt.Fprintln(os.Stderr, "north: warning:", warning)
+		fmt.Fprintln(os.Stderr, "northframe: warning:", warning)
 	}
 	return build.RouteCount, nil
 }
@@ -100,6 +100,12 @@ func validateRoutesDirectory(path string) error {
 				if legacy, legacyErr := os.Stat("routes"); legacyErr == nil && legacy.IsDir() {
 					return fmt.Errorf("legacy routes directory found at %s; move routes, components, client, and public below web/ or temporarily pass -routes routes", filepath.Join(workingDirectory, "routes"))
 				}
+				if nested := nestedApplications(workingDirectory); len(nested) > 0 {
+					return fmt.Errorf("no Northframe application in %s, but found one in %s; cd into it and run the command again", workingDirectory, strings.Join(nested, ", "))
+				}
+				if _, manifestErr := os.Stat("northframe.toml"); errors.Is(manifestErr, os.ErrNotExist) {
+					return fmt.Errorf("no Northframe application in %s (expected web/routes and northframe.toml); run `northframe create .` to scaffold one, or run from the application root", workingDirectory)
+				}
 			}
 			return fmt.Errorf("routes directory %q not found in %s; run this command from the application root or pass -routes", path, workingDirectory)
 		}
@@ -109,6 +115,24 @@ func validateRoutesDirectory(path string) error {
 		return fmt.Errorf("routes path %q is not a directory", path)
 	}
 	return nil
+}
+
+// nestedApplications lists immediate subdirectories that contain web/routes.
+func nestedApplications(directory string) []string {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return nil
+	}
+	var found []string
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || entry.Name() == "node_modules" {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(directory, entry.Name(), "web", "routes")); err == nil && info.IsDir() {
+			found = append(found, entry.Name())
+		}
+	}
+	return found
 }
 
 func writeGeneratedFiles(directory string, files map[string][]byte) error {

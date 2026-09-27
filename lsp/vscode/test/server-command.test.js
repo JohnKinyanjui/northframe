@@ -14,12 +14,12 @@ test("uses the open Northframe checkout instead of a stale default CLI", () => {
     fs.writeFileSync(path.join(root, "go.mod"), "module github.com/JohnKinyanjui/northframe\n\ngo 1.27\n");
     fs.writeFileSync(path.join(root, "cmd", "cli", "main.go"), "package main\n");
     assert.deepEqual(resolveServerCommand({
-      command: "north",
+      command: "northframe",
       args: ["lsp"],
       folders: [{ uri: { fsPath: root } }],
     }), {
       command: "go",
-      args: ["run", "./cmd/cli", "lsp"],
+      args: ["run", "./cmd/northframe", "lsp"],
       cwd: root,
       localCheckout: true,
     });
@@ -36,12 +36,12 @@ test("finds the Northframe checkout above an example workspace", () => {
     fs.writeFileSync(path.join(root, "go.mod"), "module github.com/JohnKinyanjui/northframe\n\ngo 1.27\n");
     fs.writeFileSync(path.join(root, "cmd", "cli", "main.go"), "package main\n");
     assert.deepEqual(resolveServerCommand({
-      command: "north",
+      command: "northframe",
       args: ["lsp"],
       folders: [{ uri: { fsPath: path.join(root, "examples", "demo") } }],
     }), {
       command: "go",
-      args: ["run", "./cmd/cli", "lsp"],
+      args: ["run", "./cmd/northframe", "lsp"],
       cwd: root,
       localCheckout: true,
     });

@@ -166,6 +166,6 @@ Generate an application-owned storage key; never use the submitted filename as a
 
 If the handler never runs, compare the form's `method` and `action` with `PageActions`. If fields arrive empty, compare every HTML `name` with its `form` tag. If enhanced errors do not appear, verify `nf-enhance`, `nf-error`, and `nf-message`, then inspect the request in the browser network panel.
 
-Run `north generate` after changing action registration or a template. A `404` usually means the action path does not match. A `422` means decoding or validation failed. A `500` should go through `error.north` and should be investigated in server logs using the request ID.
+Run `northframe generate` after changing action registration or a template. A `404` usually means the action path does not match. A `422` means decoding or validation failed. A `500` should go through `error.north` and should be investigated in server logs using the request ID.
 
 For machine-facing JSON, use `web/routes/api/.../route.go`, call `ctx.DecodeJSON`, and return `ctx.JSON`. A form action and an API handler can still call the same service, preserving one set of business rules.

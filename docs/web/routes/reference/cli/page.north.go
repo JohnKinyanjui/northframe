@@ -7,5 +7,5 @@ import (
 )
 
 func Page(*web.Context) (generated.PageProps, error) {
-	return generated.PageProps{Page: site.Document("CLI reference", "A practical reference for every current north command and its role in development or production.", "Reference", "reference/cli.md")}, nil
+	return generated.PageProps{Page: site.Document("CLI reference", "A practical reference for every current northframe command and its role in development or production.", "Reference", "reference/cli.md")}, nil
 }

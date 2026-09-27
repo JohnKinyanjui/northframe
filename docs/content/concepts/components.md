@@ -47,7 +47,7 @@ Use quoted literals for fixed strings and `${...}` for typed server values:
 />
 ```
 
-Boolean props may also use `{true}` or `{false}`. The prop name is exported and case-sensitive. If VS Code reports that `${expression}` is invalid while `north generate` succeeds, the editor is running an older `north lsp`; reinstall the CLI and restart the language server.
+Boolean props may also use `{true}` or `{false}`. The prop name is exported and case-sensitive. If VS Code reports that `${expression}` is invalid while `northframe generate` succeeds, the editor is running an older `northframe lsp`; reinstall the CLI and restart the language server.
 
 ## Defaults and optional input
 
@@ -91,4 +91,4 @@ A component may have a `<script lang="ts">` block. Each rendered component insta
 
 Keep component imports in the script block and Go imports in the frontmatter contract. Northframe generates native Go render functions and TypeScript contracts; do not edit those generated files.
 
-Start with a component that accepts strings and renders correctly on the first request. Add an explicit Props contract when data becomes structured, then add a script only for behavior that must run in the browser. Run `north generate` after changing a prop so every caller is checked.
+Start with a component that accepts strings and renders correctly on the first request. Add an explicit Props contract when data becomes structured, then add a script only for behavior that must run in the browser. Run `northframe generate` after changing a prop so every caller is checked.

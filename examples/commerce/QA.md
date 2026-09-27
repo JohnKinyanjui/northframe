@@ -4,12 +4,12 @@ This checklist covers the behaviour that makes the Commerce example a useful Nor
 
 ## Startup and configuration
 
-- Does `north run` load `DATABASE_URL` from `.env`? Yes; shell variables take precedence over file values.
+- Does `northframe run` load `DATABASE_URL` from `.env`? Yes; shell variables take precedence over file values.
 - Does startup fail clearly when `DATABASE_URL` is absent? Yes; Commerce has no silent demo-data fallback.
 - Does a bad PostgreSQL address produce an actionable connection error? It should identify database startup rather than failing on the first page request.
 - Are migrations applied before routes begin serving? Yes.
 - Are migrations idempotent across restarts? Yes; each embedded migration is recorded and runs once.
-- Does `north build` produce one executable containing routes, CSS, client modules, migrations, and assets? Yes.
+- Does `northframe build` produce one executable containing routes, CSS, client modules, migrations, and assets? Yes.
 - Can Commerce and Calculator generate independently? Yes; neither example imports the other.
 
 ## Server-rendered pages and routes
@@ -76,7 +76,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/commerce_db go test -
 From `examples/commerce`:
 
 ```sh
-north db generate
-north generate
-north build -o ./relay-commerce
+northframe db generate
+northframe generate
+northframe build -o ./relay-commerce
 ```

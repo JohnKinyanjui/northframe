@@ -2,8 +2,8 @@
   "name": "northframe",
   "displayName": "Northframe",
   "description": "Language support for Northframe .north SSR components.",
-  "version": "0.1.0-beta",
-  "publisher": "northframe",
+  "version": "0.1.0",
+  "publisher": "JohnKinyanjui",
   "repository": {
     "type": "git",
     "url": "https://github.com/JohnKinyanjui/northframe.git"
@@ -12,6 +12,7 @@
   "bugs": {
     "url": "https://github.com/JohnKinyanjui/northframe/issues"
   },
+  "preview": true,
   "icon": "icon.png",
   "license": "MIT",
   "engines": {
@@ -43,7 +44,7 @@
   "contributes": {
     "configurationDefaults": {
       "[northframe]": {
-        "editor.defaultFormatter": "northframe.northframe",
+        "editor.defaultFormatter": "JohnKinyanjui.northframe",
         "editor.quickSuggestions": {
           "comments": "off",
           "strings": "on",
@@ -105,7 +106,7 @@
       "properties": {
         "northframe.server.path": {
           "type": "string",
-          "default": "north",
+          "default": "northframe",
           "description": "Path to the Northframe CLI executable."
         },
         "northframe.server.args": {

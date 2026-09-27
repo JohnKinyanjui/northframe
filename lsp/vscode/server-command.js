@@ -44,12 +44,12 @@ function northframeCheckout(folders) {
 
 function resolveServerCommand({ command, args, folders, pathSetting, argsSetting }) {
   const explicit = hasExplicitValue(pathSetting) || hasExplicitValue(argsSetting);
-  if (command === "north" && !explicit) {
+  if ((command === "northframe" || command === "north") && !explicit) {
     const checkout = northframeCheckout(folders);
     if (checkout) {
       return {
         command: "go",
-        args: ["run", "./cmd/cli", "lsp"],
+        args: ["run", "./cmd/northframe", "lsp"],
         cwd: checkout,
         localCheckout: true,
       };

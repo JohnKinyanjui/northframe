@@ -10,7 +10,7 @@ Node package manifest.
 | Direct browser dependencies | `northframe.toml` | `package.json` |
 | Exact browser dependency graph | `northframe.lock` | Package-manager lockfile |
 | Downloaded browser packages | `.northframe/` | `node_modules/` or another package store |
-| Development/build scripts | `north` commands and Go tooling | `package.json` scripts |
+| Development/build scripts | `northframe` commands and Go tooling | `package.json` scripts |
 | Runtime | One Go executable | Commonly Node.js or a JavaScript runtime |
 
 The narrower file gives Northframe room for route, compiler, client-source,

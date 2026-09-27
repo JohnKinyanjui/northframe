@@ -9,7 +9,7 @@ import (
 )
 
 func TestRenderEscapesHTMLAndBuildsHeadingIndex(t *testing.T) {
-	document := Render([]byte("# Hidden title\n\n## Start here\n\nUse **Go** and `north run`.\n\n- Fast\n\n```go\nif x < 2 {}\n```\n\n<script>alert(1)</script>"))
+	document := Render([]byte("# Hidden title\n\n## Start here\n\nUse **Go** and `northframe run`.\n\n- Fast\n\n```go\nif x < 2 {}\n```\n\n<script>alert(1)</script>"))
 	var rendered bytes.Buffer
 	if err := web.WriteHTML(&rendered, document.HTML); err != nil {
 		t.Fatal(err)

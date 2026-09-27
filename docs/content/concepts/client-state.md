@@ -157,7 +157,7 @@ let preview: string = formatMoney(1250, "KES");
 <output>#{preview}</output>
 ```
 
-Third-party browser libraries use `north add` and bare imports. They are bundled at build time; Node is not part of production.
+Third-party browser libraries use `northframe add` and bare imports. They are bundled at build time; Node is not part of production.
 
 ## Choose state ownership
 

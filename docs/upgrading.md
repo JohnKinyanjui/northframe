@@ -1,9 +1,9 @@
 # Upgrading a Northframe application
 
-Update the `north` executable first, then preview the application refresh:
+Update the `northframe` executable first, then preview the application refresh:
 
 ```sh
-north upgrade --check
+northframe upgrade --check
 ```
 
 The preview compiles routes and reports only the framework-managed files that
@@ -12,7 +12,7 @@ would change. It does not write application files.
 Apply the refresh with:
 
 ```sh
-north upgrade
+northframe upgrade
 ```
 
 Northframe writes only the protected `.generated/routes` tree—including the
@@ -24,13 +24,13 @@ database files, `northframe.toml`, or dependency versions.
 JavaScript packages have a separate lifecycle:
 
 ```sh
-north add date-fns@^4.4.0
-north update
+northframe add date-fns@^4.4.0
+northframe update
 ```
 
-`north add` changes declared dependencies. `north update` resolves those
-declarations again. `north upgrade` intentionally leaves both alone so a
+`northframe add` changes declared dependencies. `northframe update` resolves those
+declarations again. `northframe upgrade` intentionally leaves both alone so a
 framework refresh cannot silently change browser-library behavior.
 
-Restart a running `north run` process after replacing the `north` executable.
+Restart a running `northframe run` process after replacing the `northframe` executable.
 An already-running watcher keeps the older compiler in memory until restart.

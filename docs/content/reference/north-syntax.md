@@ -227,7 +227,7 @@ Multiline tags keep the final bracket beside the last attribute instead of leavi
 
 Formatting is token-safe. Northframe asks the HTML and TypeScript language services for their edits, restores server directives and frontmatter, then rejects the complete result if meaningful Northframe tokens were deleted or duplicated. Go imports inside `---` are resolved and sorted separately during save. The formatter never rewrites the sibling `.north.go`; normal Go tooling owns that file.
 
-When a diagnostic seems stale, save the file and run `north generate` from the module root. The command uses the same parser as the language server and reports the authoritative compile error without starting a server.
+When a diagnostic seems stale, save the file and run `northframe generate` from the module root. The command uses the same parser as the language server and reports the authoritative compile error without starting a server.
 
 ## Errors
 

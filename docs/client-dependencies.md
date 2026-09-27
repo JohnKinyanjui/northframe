@@ -6,15 +6,15 @@ Deno, npm, or an application `package.json`.
 ## Commands
 
 ```sh
-north add date-fns
-north add chart.js@4.5.0
-north add @floating-ui/dom@^1.7.0
-north remove chart.js
-north update
+northframe add date-fns
+northframe add chart.js@4.5.0
+northframe add @floating-ui/dom@^1.7.0
+northframe remove chart.js
+northframe update
 ```
 
 An omitted version is saved as `latest`. An explicit version, dist-tag, or
-semantic-version range is preserved in `northframe.toml`. `north update`
+semantic-version range is preserved in `northframe.toml`. `northframe update`
 resolves that intent again and recreates the local package store.
 
 Set `NORTHFRAME_NPM_REGISTRY` to use a compatible registry mirror. The default
@@ -45,7 +45,7 @@ import confetti from "https://esm.sh/canvas-confetti@1.9.3";
 </script>
 ```
 
-- Bare imports must be declared with `north add`.
+- Bare imports must be declared with `northframe add`.
 - Relative imports resolve from the `.north` component containing the script.
 - `$client/` resolves from `client.source` and supports `.ts`, `.tsx`, `.js`,
   `.jsx`, and matching `index` modules.

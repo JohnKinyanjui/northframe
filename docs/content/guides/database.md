@@ -77,7 +77,7 @@ RETURNING id, name, price_cents, active;
 Generate typed code:
 
 ```sh
-north db generate
+northframe db generate
 ```
 
 Run it whenever migrations or query SQL change. A stale generated package is one of the most common causes of confusing loader compile errors.
@@ -116,7 +116,7 @@ Small applications may resolve `*dbgen.Queries` directly. Services become valuab
 ## Create a migration
 
 ```sh
-north db create add_products
+northframe db create add_products
 ```
 
 Fill the generated up and down sections:
@@ -140,13 +140,13 @@ This example is PostgreSQL-specific. SQLite and MySQL require engine-appropriate
 ## Verify and apply migrations
 
 ```sh
-north db verify
-north db status
-north db migrate
-north db rollback
+northframe db verify
+northframe db status
+northframe db migrate
+northframe db rollback
 ```
 
-`north db verify` checks migration files without a connection and belongs in CI. The other commands run the application's command at `cmd/migrator` or `cmd/migrate`. That application command owns the embedded migration filesystem, credentials, and target environment.
+`northframe db verify` checks migration files without a connection and belongs in CI. The other commands run the application's command at `cmd/migrator` or `cmd/migrate`. That application command owns the embedded migration filesystem, credentials, and target environment.
 
 Northframe also exposes a small embedded migration helper:
 
@@ -186,6 +186,6 @@ The service owns the full transaction. A handler should not commit half an opera
 
 ## Seed and test
 
-Add an idempotent command at `cmd/seeder` and run `north db seed`. Production reference data should be reviewed like a migration and must not create duplicates when rerun.
+Add an idempotent command at `cmd/seeder` and run `northframe db seed`. Production reference data should be reviewed like a migration and must not create duplicates when rerun.
 
-Test sqlc queries against the same engine used in production. SQLite cannot prove PostgreSQL locking, JSON, timestamp, constraint, or transaction behavior. In CI, apply every migration to an empty database, run `north db generate`, execute integration tests, and compile the application.
+Test sqlc queries against the same engine used in production. SQLite cannot prove PostgreSQL locking, JSON, timestamp, constraint, or transaction behavior. In CI, apply every migration to an empty database, run `northframe db generate`, execute integration tests, and compile the application.

@@ -42,7 +42,7 @@ func upgrade(arguments []string) error {
 	if err := writeGeneratedFiles(options.generated, build.Files); err != nil {
 		return err
 	}
-	validationDirectory, err := os.MkdirTemp("", "north-upgrade-")
+	validationDirectory, err := os.MkdirTemp("", "northframe-upgrade-")
 	if err != nil {
 		_ = restoreUpgradeFiles(options.generated, previous)
 		return err

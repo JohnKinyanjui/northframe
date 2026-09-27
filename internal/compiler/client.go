@@ -240,7 +240,7 @@ func clientResolverPlugin(project dependencies.Project) api.Plugin {
 			if bareClientImport(importPath) && !withinPath(arguments.Importer, project.NodeModules) {
 				name := dependencies.PackageName(importPath)
 				if _, declared := project.Dependencies[name]; !declared {
-					return api.OnResolveResult{}, fmt.Errorf("package %q is not declared; run `north add %s`", name, name)
+					return api.OnResolveResult{}, fmt.Errorf("package %q is not declared; run `northframe add %s`", name, name)
 				}
 			}
 			return api.OnResolveResult{}, nil

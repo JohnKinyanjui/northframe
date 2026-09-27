@@ -8,7 +8,7 @@ be documented and should include actionable migration guidance.
 
 - Go 1.27 or newer.
 - Linux amd64/arm64, macOS arm64, and Windows amd64 are intended targets for the
-  `north` CLI and generated applications.
+  `northframe` CLI and generated applications.
 - PostgreSQL, MySQL, and SQLite are supported through `pkg/database` adapters.
 - A modern browser with ES modules, CustomEvent, Fetch, and WebSocket support.
 
@@ -35,7 +35,7 @@ be documented and should include actionable migration guidance.
 
 ## Beta CLI contract
 
-The beta includes `north create`, `generate`, `run`, `build`, `db`,
+The beta includes `northframe create`, `generate`, `run`, `build`, `db`,
 `add/remove/update`, `upgrade`, `deploy`, and `lsp`. A command can change before
 `v1`, but removal or incompatible default changes require release notes and a
 migration path.
@@ -56,8 +56,8 @@ migration path.
 
 - Pin exact tags such as `v0.1.0-beta` in repeatable builds.
 - Never edit `.generated`; regenerate after upgrading the CLI.
-- Use `north upgrade --check`, `north generate`, `go test ./...`, and
-  `north deploy check` before accepting a new beta.
+- Use `northframe upgrade --check`, `northframe generate`, `go test ./...`, and
+  `northframe deploy check` before accepting a new beta.
 - The VS Code extension and CLI should use the same release family. Restart the
   language server and development server after changing the CLI.
 

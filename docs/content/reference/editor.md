@@ -5,7 +5,7 @@ Northframe ships one language server with the CLI. It uses the production compil
 Run the server directly only when integrating another editor:
 
 ```sh
-north lsp
+northframe lsp
 ```
 
 The command speaks LSP over standard input and output; it is not an interactive shell command. The VS Code extension starts it automatically.
@@ -15,10 +15,16 @@ The command speaks LSP over standard input and output; it is not an interactive 
 Install the matching CLI first:
 
 ```sh
-go install github.com/JohnKinyanjui/northframe/cmd/cli@v0.1.0-beta
+go install github.com/JohnKinyanjui/northframe/cmd/northframe@v0.1.0-beta
 ```
 
-Until the extension is available from a registry, package it from a Northframe checkout:
+Install **Northframe** from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=JohnKinyanjui.northframe). Because this is the first beta, choose **Install Pre-Release Version** from the Install button's dropdown. The equivalent CLI command is:
+
+```sh
+code --install-extension JohnKinyanjui.northframe --pre-release
+```
+
+To test a local extension checkout instead, package it manually:
 
 ```sh
 cd lsp/vscode
@@ -28,7 +34,7 @@ code --install-extension "$PWD/northframe.vsix" --force
 
 Run **Developer: Reload Window** after installation. Open a `.north` file and use **Northframe: Show Language Server Output** to confirm which executable was started. The extension requires VS Code's built-in HTML and TypeScript features and installs Tailwind CSS IntelliSense as an editor dependency.
 
-The Node command above packages a VS Code extension. It does not add Node, npm, or `package.json` to a Northframe application.
+The Node command above is only for local extension development. Marketplace installation does not require Node, and neither path adds Node, npm, or `package.json` to a Northframe application.
 
 ## What the language server understands
 
@@ -45,7 +51,7 @@ Hovering a prop shows its Go type and declaration owner. Go to Definition on `Pr
 
 TypeScript navigation is delegated to VS Code's TypeScript language service through a position-preserving virtual document. HTML, Emmet, and Tailwind completion use the same technique, so their locations map back to the original `.north` file.
 
-The language server uses the same parser as the compiler. This means a diagnostic in the editor should be actionable at build time too. If a CLI upgrade changes compiler behavior, restart the language server and the `north run` process so they load the new executable.
+The language server uses the same parser as the compiler. This means a diagnostic in the editor should be actionable at build time too. If a CLI upgrade changes compiler behavior, restart the language server and the `northframe run` process so they load the new executable.
 
 ## Save-time Go imports
 
@@ -60,7 +66,7 @@ interface Props {
 ---
 ```
 
-When you save, the extension asks `north lsp` to resolve package aliases. It searches:
+When you save, the extension asks `northframe lsp` to resolve package aliases. It searches:
 
 - packages in the current Go module;
 - standard-library packages;
@@ -122,11 +128,11 @@ The sibling `page.north.go` or `layout.north.go` remains ordinary Go. Use the of
 
 ## Keep the CLI and extension aligned
 
-The extension launches the executable configured by `northframe.server.path`, which defaults to `north`. Check the exact binary before reporting a parser problem:
+The extension launches the executable configured by `northframe.server.path`, which defaults to `northframe`. Check the exact binary before reporting a parser problem:
 
 ```sh
-command -v north
-go install github.com/JohnKinyanjui/northframe/cmd/cli@latest
+command -v northframe
+go install github.com/JohnKinyanjui/northframe/cmd/northframe@latest
 ```
 
 After replacing the CLI, run **Northframe: Restart Language Server** from the command palette. An already-running extension process does not silently switch to the new executable.
@@ -146,7 +152,7 @@ If navigation returns the wrong symbol, place the cursor directly on the identif
 
 ## Troubleshooting
 
-When diagnostics look stale, save the file, restart the Northframe language server, and confirm the configured command resolves to the same `north` executable used in your terminal. Run `north generate` from the application root; it uses the production parser and is the final authority.
+When diagnostics look stale, save the file, restart the Northframe language server, and confirm the configured command resolves to the same `northframe` executable used in your terminal. Run `northframe generate` from the application root; it uses the production parser and is the final authority.
 
 If only TypeScript navigation is missing, confirm VS Code's built-in TypeScript and JavaScript language features are enabled. If only Tailwind completion is missing, check that the Tailwind CSS extension is enabled and that `tailwindCSS.includeLanguages` still maps `northframe` to `html`.
 

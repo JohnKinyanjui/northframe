@@ -114,7 +114,7 @@ class NorthframeController {
 
   async start() {
     const configuration = vscode.workspace.getConfiguration("northframe.server");
-    const command = configuration.get("path", "north");
+    const command = configuration.get("path", "northframe");
     const args = configuration.get("args", ["lsp"]);
     const folders = vscode.workspace.workspaceFolders || [];
     const server = resolveServerCommand({
@@ -145,9 +145,9 @@ class NorthframeController {
       });
       this.log("Northframe language server ready");
 	  if (initialization?.capabilities?.referencesProvider !== true) {
-		this.log("The configured north CLI is older than this extension and does not provide the current navigation contract");
+		this.log("The configured northframe CLI is older than this extension and does not provide the current navigation contract");
 		void vscode.window.showWarningMessage(
-		  "The configured north CLI is older than the Northframe extension. Run `go install github.com/JohnKinyanjui/northframe/cmd/cli@latest`, then restart the language server.",
+		  "The configured northframe CLI is older than the Northframe extension. Run `go install github.com/JohnKinyanjui/northframe/cmd/northframe@latest`, then restart the language server.",
 		  "Show Output",
 		).then((choice) => {
 		  if (choice === "Show Output") this.output.show(true);
@@ -158,7 +158,7 @@ class NorthframeController {
       if (this.client === client) this.client = null;
       this.log(`Could not start language server: ${error.message}`);
       void vscode.window.showErrorMessage(
-        `Northframe language server could not start: ${error.message}. Install the north CLI or configure northframe.server.path.`,
+        `Northframe language server could not start: ${error.message}. Install the northframe CLI or configure northframe.server.path.`,
         "Show Output",
       ).then((choice) => {
         if (choice === "Show Output") this.output.show(true);

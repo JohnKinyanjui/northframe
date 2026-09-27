@@ -96,7 +96,7 @@ func LoadLock(root string) (Lockfile, error) {
 		return Lockfile{}, fmt.Errorf("parse %s: %w", LockName, err)
 	}
 	if lock.Version != lockVersion {
-		return Lockfile{}, fmt.Errorf("unsupported %s format %d; run `north update`", LockName, lock.Version)
+		return Lockfile{}, fmt.Errorf("unsupported %s format %d; run `northframe update`", LockName, lock.Version)
 	}
 	if lock.Packages == nil {
 		lock.Packages = map[string]LockedPackage{}
@@ -161,7 +161,7 @@ func InspectProject(start string) (Project, error) {
 	}
 	lock, err := LoadLock(root)
 	if errors.Is(err, os.ErrNotExist) {
-		return Project{}, fmt.Errorf("%s is missing; run `north update`", LockName)
+		return Project{}, fmt.Errorf("%s is missing; run `northframe update`", LockName)
 	}
 	if err != nil {
 		return Project{}, err
@@ -169,15 +169,15 @@ func InspectProject(start string) (Project, error) {
 	for name, constraint := range project.Dependencies {
 		locked, ok := lock.Packages[name]
 		if !ok {
-			return Project{}, fmt.Errorf("dependency %s is not locked; run `north update`", name)
+			return Project{}, fmt.Errorf("dependency %s is not locked; run `northframe update`", name)
 		}
 		if locked.Constraint != constraint {
-			return Project{}, fmt.Errorf("dependency %s lock uses %q instead of %q; run `north update`", name, locked.Constraint, constraint)
+			return Project{}, fmt.Errorf("dependency %s lock uses %q instead of %q; run `northframe update`", name, locked.Constraint, constraint)
 		}
 	}
 	for name := range lock.Packages {
 		if !fileExists(filepath.Join(packageDirectory(project.NodeModules, name), "package.json")) {
-			return Project{}, fmt.Errorf("dependency files for %s are missing; run `north update`", name)
+			return Project{}, fmt.Errorf("dependency files for %s are missing; run `northframe update`", name)
 		}
 	}
 	return project, nil

@@ -43,7 +43,7 @@ func databaseCreate(arguments []string) error {
 		return err
 	}
 	if flags.NArg() != 1 {
-		return errors.New("usage: north db create [-dir path] <migration name>")
+		return errors.New("usage: northframe db create [-dir path] <migration name>")
 	}
 	name := migrationName(flags.Arg(0))
 	if name == "" {

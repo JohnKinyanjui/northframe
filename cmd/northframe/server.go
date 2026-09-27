@@ -21,8 +21,12 @@ func runserver(arguments []string) error {
 	if *port < 1 || *port > 65535 {
 		return fmt.Errorf("invalid port %d", *port)
 	}
+	// Fail before claiming the port: a missing application will not fix itself by watching.
+	if err := validateRoutesDirectory(options.routes); err != nil {
+		return err
+	}
 
-	temporary, err := os.MkdirTemp("", "north-run-")
+	temporary, err := os.MkdirTemp("", "northframe-run-")
 	if err != nil {
 		return err
 	}
@@ -53,7 +57,7 @@ func runserver(arguments []string) error {
 		buildNumber++
 		binary := filepath.Join(temporary, fmt.Sprintf("app-%d", buildNumber))
 		if err := compileDevelopmentBuild(*options, binary); err != nil {
-			fmt.Fprintln(os.Stderr, "north:", err)
+			fmt.Fprintln(os.Stderr, "northframe:", err)
 			if waitErr := waitForChange(*watchRoot, options.generated, baseline, interrupts); waitErr != nil {
 				if errors.Is(waitErr, errInterrupted) {
 					return nil
@@ -83,7 +87,7 @@ func runserver(arguments []string) error {
 				current = nil
 				return err
 			}
-			fmt.Printf("North development server: http://localhost:%d\n", *port)
+			fmt.Printf("Northframe development server: http://localhost:%d\n", *port)
 			fmt.Println("Watching project files. Press Ctrl+C to stop.")
 		} else {
 			supervisor.ReloadBrowsers()

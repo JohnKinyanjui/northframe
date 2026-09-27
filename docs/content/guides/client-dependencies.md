@@ -3,10 +3,10 @@
 Northframe can bundle browser-compatible JavaScript libraries without making Node or a package manager part of the application workflow.
 
 ```sh
-north add date-fns
-north add chart.js@4.5.0
-north update
-north remove chart.js
+northframe add date-fns
+northframe add chart.js@4.5.0
+northframe update
+northframe remove chart.js
 ```
 
 Declarations live in `northframe.toml`; exact resolutions live in `northframe.lock`:
@@ -36,7 +36,7 @@ Packages must be browser-compatible. A package that expects Node built-ins, nati
 
 ## A complete example
 
-Create `web/routes/orders/page.north` with a TypeScript import, run `north add date-fns`, and then `north run`:
+Create `web/routes/orders/page.north` with a TypeScript import, run `northframe add date-fns`, and then `northframe run`:
 
 ```html
 <script lang="ts">
@@ -48,4 +48,4 @@ let checkedAt: string = format(new Date(), "yyyy-MM-dd HH:mm");
 
 Northframe writes the declaration to `northframe.toml`, records exact versions in `northframe.lock`, and bundles the import. Use bare imports for managed packages, relative imports for nearby modules, and `$client/` for shared client modules. Do not import a browser package into a Go sidecar: Go dependencies belong in `go.mod`.
 
-Commit the manifest and lockfile so CI can run `north update` reproducibly. If the package expects Node built-ins or native addons, choose a browser ESM build or another library before continuing.
+Commit the manifest and lockfile so CI can run `northframe update` reproducibly. If the package expects Node built-ins or native addons, choose a browser ESM build or another library before continuing.

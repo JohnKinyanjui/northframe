@@ -109,6 +109,28 @@ func TestValidateRoutesDirectoryExplainsLegacyLayout(t *testing.T) {
 	}
 }
 
+func TestValidateRoutesDirectoryExplainsMissingApplication(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	err := validateRoutesDirectory("web/routes")
+	if err == nil || !strings.Contains(err.Error(), "no Northframe application") || !strings.Contains(err.Error(), "northframe create .") {
+		t.Fatalf("validateRoutesDirectory() error = %v, want scaffold guidance", err)
+	}
+}
+
+func TestValidateRoutesDirectoryPointsToNestedApplication(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "site", "web", "routes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	err := validateRoutesDirectory("web/routes")
+	if err == nil || !strings.Contains(err.Error(), "found one in site") {
+		t.Fatalf("validateRoutesDirectory() error = %v, want nested application hint", err)
+	}
+}
+
 func TestWatchSignatureIncludesPublicAssets(t *testing.T) {
 	root := t.TempDir()
 	before, err := watchSignature(root, filepath.Join(root, ".generated/routes"))

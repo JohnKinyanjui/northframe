@@ -7,14 +7,14 @@ This walkthrough builds a small product page from an empty Northframe scaffold. 
 Install the CLI and scaffold a project:
 
 ```sh
-go install github.com/JohnKinyanjui/northframe/cmd/cli@v0.1.0-beta
+go install github.com/JohnKinyanjui/northframe/cmd/northframe@v0.1.0-beta
 mkdir hello-north
 cd hello-north
-north create .
-north run
+northframe create .
+northframe run
 ```
 
-Open the address printed by the command, normally `http://localhost:8000`. `north run` compiles the app before starting it, watches source files, and reloads the browser after a successful rebuild. A compile failure is printed in the terminal while the last successful build keeps serving.
+Open the address printed by the command, normally `http://localhost:8000`. `northframe run` compiles the app before starting it, watches source files, and reloads the browser after a successful rebuild. A compile failure is printed in the terminal while the last successful build keeps serving.
 
 The scaffold already contains the root layout, a home route, an API health route, configuration, and an application entrypoint. We will replace the home route.
 
@@ -149,7 +149,7 @@ curl -i -X POST -d 'name=Amina' http://localhost:8000/welcome
 Stop the development server and build the real artifact:
 
 ```sh
-north build -o ./app
+northframe build -o ./app
 PORT=8000 ./app
 ```
 
@@ -157,6 +157,6 @@ The output is one Go executable containing generated renderers, CSS, the browser
 
 ## Common first-app failures
 
-If Northframe reports that no routes exist, run the command from the directory containing `go.mod` and make sure the route tree begins at `web/routes`. If it cannot find a loader, confirm that `page.north.go` is beside `page.north`. If the generated import cannot be resolved, copy the exact module path from `go.mod` and run `north generate` once.
+If Northframe reports that no routes exist, run the command from the directory containing `go.mod` and make sure the route tree begins at `web/routes`. If it cannot find a loader, confirm that `page.north.go` is beside `page.north`. If the generated import cannot be resolved, copy the exact module path from `go.mod` and run `northframe generate` once.
 
 Next, read [Routes and layouts](/concepts/routes-and-layouts) to learn URL mapping and [Props and rendering](/concepts/props) to understand the server contract in depth.

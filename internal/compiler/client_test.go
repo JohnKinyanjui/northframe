@@ -233,7 +233,7 @@ func TestCompileClientComponentGuidesUndeclaredPackageImport(t *testing.T) {
 		SourcePath: sourcePath,
 		Project:    dependencies.Project{Root: root, ClientSource: filepath.Join(root, "client"), NodeModules: filepath.Join(root, ".northframe", "modules", "node_modules"), Dependencies: map[string]string{}},
 	})
-	if err == nil || !strings.Contains(err.Error(), "north add thing") {
+	if err == nil || !strings.Contains(err.Error(), "northframe add thing") {
 		t.Fatalf("error = %v", err)
 	}
 }

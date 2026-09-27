@@ -4,7 +4,7 @@ Northframe's language server is implemented in Go under `internal/lsp` and is
 started with:
 
 ```sh
-north lsp
+northframe lsp
 ```
 
 The `vscode` directory contains the dependency-free Visual Studio Code

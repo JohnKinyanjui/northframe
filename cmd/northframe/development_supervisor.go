@@ -77,7 +77,7 @@ func (supervisor *developmentSupervisor) Start() error {
 	supervisor.started = true
 	go func() {
 		if err := supervisor.server.Serve(supervisor.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			fmt.Fprintln(os.Stderr, "north: development supervisor:", err)
+			fmt.Fprintln(os.Stderr, "northframe: development supervisor:", err)
 		}
 	}()
 	return nil

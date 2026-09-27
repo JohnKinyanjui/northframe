@@ -3,6 +3,19 @@
 Language support for `.north` files backed by Northframe's built-in Go language
 server.
 
+Northframe is inspired by Astro's server-first composition and Svelte's approachable
+component authoring while keeping Go responsible for SSR, routing, data access, and
+deployment. This extension is the official editor integration for its first beta.
+
+## Installation
+
+Install **Northframe** from the Visual Studio Marketplace and choose **Install
+Pre-Release Version**, or run:
+
+```sh
+code --install-extension JohnKinyanjui.northframe --pre-release
+```
+
 ## Features
 
 - compiler diagnostics
@@ -32,8 +45,8 @@ deletes or duplicates meaningful Northframe tokens.
 
 ## Requirements
 
-Install the Northframe CLI so `north` is available on `PATH`, then open a
-Northframe project and any `.north` file. The extension starts `north lsp`
+Install the Northframe CLI so `northframe` is available on `PATH`, then open a
+Northframe project and any `.north` file. The extension starts `northframe lsp`
 automatically.
 
 The default project convention keeps browser-facing code together under

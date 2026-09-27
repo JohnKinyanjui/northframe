@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0-beta
+## 0.1.0 (Pre-release)
 
 First public beta of the Northframe VS Code extension.
 

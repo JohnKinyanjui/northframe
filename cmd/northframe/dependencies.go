@@ -45,7 +45,7 @@ func removeDependency(arguments []string) error {
 
 func updateDependencies(arguments []string) error {
 	if len(arguments) != 0 {
-		return fmt.Errorf("update does not accept package names yet; edit northframe.toml or run `north add package@version`")
+		return fmt.Errorf("update does not accept package names yet; edit northframe.toml or run `northframe add package@version`")
 	}
 	manager, _, err := dependencyManager()
 	if err != nil {

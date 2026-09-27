@@ -5,19 +5,19 @@ A Northframe deployment is a compiled Go application. Templates, generated rende
 ## Run the production preflight
 
 ```sh
-north db verify
+northframe db verify
 go test ./...
-north deploy check
+northframe deploy check
 ```
 
-`north deploy check` regenerates the route tree, runs `go build -trimpath` into a temporary directory, and verifies that a non-empty executable was produced. Use `-target ./cmd/server` when the application entrypoint is not the module root.
+`northframe deploy check` regenerates the route tree, runs `go build -trimpath` into a temporary directory, and verifies that a non-empty executable was produced. Use `-target ./cmd/server` when the application entrypoint is not the module root.
 
 This checks compilation, not environment connectivity. Database credentials, external providers, and migrations still need an environment-specific release check.
 
 ## Build the executable
 
 ```sh
-north build -o ./bin/app
+northframe build -o ./bin/app
 ```
 
 The command regenerates first, then builds the configured Go main package. Test the exact artifact:
@@ -31,7 +31,7 @@ The application should read runtime configuration from environment variables or 
 ## Generate a Dockerfile
 
 ```sh
-north deploy docker -output Dockerfile
+northframe deploy docker -output Dockerfile
 ```
 
 Use `-target ./cmd/server` for a non-root main package. The generated multi-stage image compiles with the Go version declared in `go.mod`, copies only the executable into Alpine, runs as a non-root user, exposes port 8000, and probes `/api/health`.
@@ -69,15 +69,15 @@ Decide whether liveness should depend on the database. Many platforms use a simp
 Apply migrations as a controlled release step:
 
 ```sh
-north db status
-north db migrate
+northframe db status
+northframe db migrate
 ```
 
 Back up important data before risky schema changes. Use expand-and-contract changes when old and new application versions may overlap. In a replicated deployment, run one migrator rather than letting every instance race on startup.
 
 ## Graceful shutdown
 
-The production server should listen for SIGINT and SIGTERM, stop taking new requests, close WebSockets, stop schedules, drain jobs within a deadline, and then close database connections. `north run` already handles development children gracefully, but production lifecycle remains application code because only the application knows its resources.
+The production server should listen for SIGINT and SIGTERM, stop taking new requests, close WebSockets, stop schedules, drain jobs within a deadline, and then close database connections. `northframe run` already handles development children gracefully, but production lifecycle remains application code because only the application knows its resources.
 
 ## Verify after release
 

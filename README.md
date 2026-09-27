@@ -8,7 +8,7 @@
   Native Go SSR with typed <code>.north</code> views and one-binary deployment.
 </p>
 
-Northframe is an experimental Laravel/Django-style framework for native Go SSR. It compiles structured `.north` views into a small generated Go layer, generates routes from the filesystem, embeds its browser runtime and CSS, and deploys as one executable.
+Northframe is a Go-first full-stack framework for native SSR. Inspired by Astro's server-first composition and Svelte's approachable component authoring, it compiles structured `.north` views into Go renderers, generates routes from the filesystem, embeds its browser runtime and CSS, and deploys as one executable.
 
 The first public beta is `v0.1.0-beta`. It is suitable for evaluation, prototypes, and migration testing, but its APIs may still change before `v1.0.0`. Read the [beta compatibility contract](COMPATIBILITY.md) before choosing it for production.
 
@@ -32,38 +32,38 @@ These applications are rendered by Go, styled by Northframe's built-in utility c
 ## Install the command
 
 ```sh
-go install github.com/JohnKinyanjui/northframe/cmd/cli@v0.1.0-beta
-north help
+go install github.com/JohnKinyanjui/northframe/cmd/northframe@v0.1.0-beta
+northframe help
 ```
 
-Go installs `north` into `GOBIN`, or into `$(go env GOPATH)/bin` when `GOBIN` is empty. Add that directory to your `PATH` if the command is not found. Contributors working from a Northframe checkout can instead run `go install ./cmd/cli`.
+Go installs `northframe` into `GOBIN`, or into `$(go env GOPATH)/bin` when `GOBIN` is empty. Add that directory to your `PATH` if the command is not found. Contributors working from a Northframe checkout can instead run `go install ./cmd/northframe`.
 
 The CLI provides the application workflow:
 
 ```sh
-north run
-north create .
-north generate
-north build -o ./app
-north db generate
-north db create add_store_members
-north db migrate
-north db rollback
-north db seed
-north add date-fns
-north remove date-fns
-north update
-north upgrade
-north lsp
+northframe run
+northframe create .
+northframe generate
+northframe build -o ./app
+northframe db generate
+northframe db create add_store_members
+northframe db migrate
+northframe db rollback
+northframe db seed
+northframe add date-fns
+northframe remove date-fns
+northframe update
+northframe upgrade
+northframe lsp
 ```
 
-`north run` loads `.env`, compiles the application, and watches `.go`, `.north`, `.css`, `.env`, and public assets. Values already exported by the shell take precedence over `.env`.
+`northframe run` loads `.env`, compiles the application, and watches `.go`, `.north`, `.css`, `.env`, and public assets. Values already exported by the shell take precedence over `.env`.
 
 The development command owns a stable public listener for the entire session. Each successful rebuild starts the new application on a private loopback port, waits until it accepts connections, atomically switches the public listener, and only then shuts down the previous child. The browser reload WebSocket belongs to the stable supervisor, so port 8000 never disappears during a rebuild. A failed compile leaves the last good application running, and Ctrl+C gracefully stops both the current child and the supervisor.
 
-`north create .` safely scaffolds the current directory. It preserves unrelated directories, performs a complete conflict preflight before writing, and refuses to overwrite an existing application file.
+`northframe create .` safely scaffolds the current directory. It preserves unrelated directories, performs a complete conflict preflight before writing, and refuses to overwrite an existing application file.
 
-After installing a newer `north` command, run `north upgrade --check` to preview the generated-file changes, then `north upgrade` to apply them. Upgrade compiles first, touches only `.generated/routes`, validates the Go application, and restores the previous generated files if validation fails. Route files, components, services, database files, and dependency versions are not rewritten.
+After installing a newer `northframe` command, run `northframe upgrade --check` to preview the generated-file changes, then `northframe upgrade` to apply them. Upgrade compiles first, touches only `.generated/routes`, validates the Go application, and restores the previous generated files if validation fails. Route files, components, services, database files, and dependency versions are not rewritten.
 
 See [Upgrading a Northframe application](docs/upgrading.md) for the upgrade boundary and its separation from JavaScript dependency updates.
 
@@ -105,7 +105,13 @@ Every `page.north` requires a sibling `page.north.go`; every `layout.north` requ
 
 ## Language server
 
-`north lsp` runs the built-in Language Server Protocol implementation over stdio. A dependency-free VS Code extension is included in `lsp/vscode`; it registers `.north`, starts `north lsp`, and adds syntax highlighting, snippets, restart controls, and server-path configuration.
+`northframe lsp` runs the built-in Language Server Protocol implementation over stdio. Install the [Northframe extension from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=JohnKinyanjui.northframe) to register `.north`, start `northframe lsp`, and add syntax highlighting, snippets, restart controls, and server-path configuration.
+
+```sh
+code --install-extension JohnKinyanjui.northframe --pre-release
+```
+
+The extension is currently published as a beta. In VS Code's Extensions view, search for **Northframe** and choose **Install Pre-Release Version**.
 
 The server shares the production compiler parser and currently provides:
 
@@ -133,7 +139,7 @@ The ignored `.generated/routes` directory contains only:
 - generated TypeScript contracts for route and component props
 - compiled utility CSS, browser modules, and embedded asset references
 
-Every generated source begins with `// Code generated by Northframe. DO NOT EDIT.` and is recreated automatically by `north run`, `north generate`, and `north build`.
+Every generated source begins with `// Code generated by Northframe. DO NOT EDIT.` and is recreated automatically by `northframe run`, `northframe generate`, and `northframe build`.
 
 Generated props mirror the handwritten route tree under `.generated/routes`. Handwritten loaders import their protected route contract, while the generated router imports both; this keeps generated code out of application packages without creating an import cycle.
 
@@ -588,8 +594,8 @@ The namespaces are deliberate: `${Props.Name}` reads typed Go SSR data, while `#
 Use normal TypeScript imports after adding a browser package through Northframe:
 
 ```sh
-north add date-fns
-north add chart.js@4.5.0
+northframe add date-fns
+northframe add chart.js@4.5.0
 ```
 
 ```html
@@ -601,7 +607,7 @@ let today: string = format(new Date(), "PP");
 </script>
 ```
 
-`northframe.toml` records direct dependencies and the shared client source directory. `northframe.lock` records the exact direct and transitive versions, tarball locations, and integrity hashes. Both files should be committed. Downloaded package contents live under ignored `.northframe/`; `north update` reconstructs them on another machine.
+`northframe.toml` records direct dependencies and the shared client source directory. `northframe.lock` records the exact direct and transitive versions, tarball locations, and integrity hashes. Both files should be committed. Downloaded package contents live under ignored `.northframe/`; `northframe update` reconstructs them on another machine.
 
 This is intentionally narrower than `package.json`: Go dependencies and the application identity stay in `go.mod`; `northframe.toml` contains only Northframe compiler settings and browser dependencies. It has no Node scripts, lifecycle hooks, package-manager metadata, or Node runtime contract. See [northframe.toml versus package.json](docs/project-manifest.md).
 
@@ -726,27 +732,27 @@ Equivalent packages are available at `database/postgres` and `database/mysql`. T
 sqlc supports `postgresql`, `mysql`, and `sqlite`. Each application keeps its own dialect-specific schema and query files, then generates typed Go code with:
 
 ```sh
-north db generate
+northframe db generate
 ```
 
 Applications place their migration runner in `cmd/migrator`. Northframe loads
 the project's `.env` and exposes the runner through a consistent CLI:
 
 ```sh
-north db verify
-north db create add_store_members
-north db migrate
-north db rollback
-north db seed
-north db status
-north db version
+northframe db verify
+northframe db create add_store_members
+northframe db migrate
+northframe db rollback
+northframe db seed
+northframe db status
+northframe db version
 ```
 
-`north db create` writes the next zero-padded migration below
-`internal/db/migrations` with Goose `Up` and `Down` sections. `north db migrate`
-and `north db rollback` map to the application runner's `up` and `down`
-operations. `north db seed` runs `cmd/seeder` and forwards options such as
-`-only`. `north db adopt` is also available for applications that need to
+`northframe db create` writes the next zero-padded migration below
+`internal/db/migrations` with Goose `Up` and `Down` sections. `northframe db migrate`
+and `northframe db rollback` map to the application runner's `up` and `down`
+operations. `northframe db seed` runs `cmd/seeder` and forwards options such as
+`-only`. `northframe db adopt` is also available for applications that need to
 baseline a known legacy schema.
 
 Northframe treats `internal/db/generated` as read-only output. SQL belongs in `internal/db/query`, schemas or migrations belong in `internal/db/schema` or `internal/db/migrations`, and handlers/services consume the generated query API.
@@ -757,7 +763,7 @@ The included calculator demonstrates SSR, a root layout, generated utilities, re
 
 ```sh
 cd examples/calculator
-north run
+northframe run
 ```
 
 Open <http://localhost:8000>.
@@ -766,10 +772,10 @@ Build one deployment executable:
 
 ```sh
 cd examples/calculator
-north build -o ./northframe-calculator
+northframe build -o ./northframe-calculator
 ```
 
-Before shipping an application, `north deploy check` regenerates its protected output and proves the production executable can be built. `north deploy docker -output Dockerfile` creates a non-root multi-stage container definition with an `/api/health` probe. Structured request logging and trace correlation, cache adapters, SMTP mail, retrying jobs, and recurring schedules are documented in [Production operations](docs/production.md).
+Before shipping an application, `northframe deploy check` regenerates its protected output and proves the production executable can be built. `northframe deploy docker -output Dockerfile` creates a non-root multi-stage container definition with an `/api/health` probe. Structured request logging and trace correlation, cache adapters, SMTP mail, retrying jobs, and recurring schedules are documented in [Production operations](docs/production.md).
 
 ## Commerce example
 
@@ -777,8 +783,8 @@ Commerce is the database-backed stress test. It exercises nested routes, indepen
 
 ```sh
 cd examples/commerce
-north db generate
-north run
+northframe db generate
+northframe run
 ```
 
 Commerce requires `DATABASE_URL`. The Add Product action validates in Go and writes through sqlc; the generated pages, client modules, utility CSS, migrations, and assets ship in the same Go executable. See `examples/commerce/QA.md` for the full regression checklist.
@@ -799,6 +805,6 @@ Northframe is now a useful framework prototype, but it is not production-complet
   already handles safe application errors and unknown GET routes)
 - streaming responses and advanced response metadata
 - a complete Tailwind-compatible utility surface, arbitrary values, and diagnostics
-- Marketplace/Open VSX publishing for the included VS Code extension
+- Open VSX publishing for the included VS Code extension
 - distributed adapters for Redis-compatible caches and durable external queues (the framework contracts, in-memory implementations, SMTP mail, structured logs/traces, schedules, and container deployment workflow are available now)
 # northframe

@@ -69,7 +69,7 @@ func createProject(arguments []string) error {
 		return fmt.Errorf("project files were created, but initial generation failed: %w", err)
 	}
 	fmt.Printf("created %s with %d compiled route(s)\n", target, count)
-	fmt.Printf("next: cd %s && north run\n", target)
+	fmt.Printf("next: cd %s && northframe run\n", target)
 	return nil
 }
 
@@ -99,11 +99,11 @@ func parseCreateArguments(arguments []string) (module, template, directory strin
 		case directory == "":
 			directory = argument
 		default:
-			return "", "", "", errors.New("usage: north create DIRECTORY [--module MODULE] [--template app|docs]")
+			return "", "", "", errors.New("usage: northframe create DIRECTORY [--module MODULE] [--template app|docs]")
 		}
 	}
 	if directory == "" {
-		return "", "", "", errors.New("usage: north create DIRECTORY [--module MODULE] [--template app|docs]")
+		return "", "", "", errors.New("usage: northframe create DIRECTORY [--module MODULE] [--template app|docs]")
 	}
 	if template != "app" && template != "docs" {
 		return "", "", "", fmt.Errorf("unknown project template %q; choose app or docs", template)
@@ -306,7 +306,7 @@ Welcome to your Northframe documentation site. Markdown stays pleasant to write,
 
 ## One deployment binary
 
-Run `+"`north build`"+` to embed the content and produce the same single Go executable as any other Northframe application.
+Run `+"`northframe build`"+` to embed the content and produce the same single Go executable as any other Northframe application.
 `, projectName)},
 		{path: "content/content.go", contents: `package content
 

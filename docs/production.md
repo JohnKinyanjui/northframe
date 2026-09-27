@@ -28,13 +28,13 @@ Depend on `mail.Sender`. `mail.NewSMTP` is the standard SMTP adapter and `mail.M
 Validate the exact production build:
 
 ```sh
-north deploy check
+northframe deploy check
 ```
 
 Generate a non-root, multi-stage container definition:
 
 ```sh
-north deploy docker -output Dockerfile
+northframe deploy docker -output Dockerfile
 ```
 
 The generated container exposes `PORT=8000`, includes an `/api/health` probe, and contains only the compiled application and Alpine runtime. Secrets remain runtime environment variables and are never copied into the image by Northframe.

@@ -1,6 +1,6 @@
 # Northframe
 
-Northframe is a Go-first full-stack framework for server-rendered applications. A `.north` file describes HTML, typed Go props, and optional browser TypeScript; Northframe compiles it into Go renderers, route registration, CSS, and small browser modules. The result is a normal Go program that can be deployed as one executable.
+Northframe is a Go-first full-stack framework for server-rendered applications. Inspired by Astro's server-first composition and Svelte's approachable component authoring, a `.north` file describes HTML, typed Go props, and optional browser TypeScript. Northframe compiles it into Go renderers, route registration, CSS, and small browser modules, producing a normal Go program that can be deployed as one executable.
 
 Northframe is designed for teams that want the ergonomics of a batteries-included web framework without making Node, Deno, Svelte, or a JavaScript server part of production. Go owns requests, data access, authentication, jobs, and HTML rendering. TypeScript is available where the browser needs interaction.
 
@@ -23,7 +23,7 @@ The calculator example is the smallest complete example. The commerce example de
 .north + .north.go + CSS + optional TypeScript
                     │
                     ▼
-          north generate / north build
+          northframe generate / northframe build
                     │
                     ▼
         generated Go renderer + route tree
@@ -69,4 +69,4 @@ This means more decisions remain in application code than in a magic configurati
 
 If you are new to Northframe, read the getting-started pages in order. Then use the concepts pages to understand the template language and the guides when adding production concerns. The reference pages are searchable descriptions of commands and supported syntax.
 
-Every tutorial follows the same loop: edit a source file, run `north generate` or `north run`, inspect the browser result, and read any compiler diagnostic as the next correction. Northframe is in beta and still moving quickly, so the compiler, the documentation for your pinned tag, and `north help` remain authoritative if behavior changes.
+Every tutorial follows the same loop: edit a source file, run `northframe generate` or `northframe run`, inspect the browser result, and read any compiler diagnostic as the next correction. Northframe is in beta and still moving quickly, so the compiler, the documentation for your pinned tag, and `northframe help` remain authoritative if behavior changes.
